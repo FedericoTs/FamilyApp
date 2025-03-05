@@ -340,10 +340,7 @@ const MapView = ({
       {/* Location error message */}
       {locationError && (
         <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-10">
-          <Alert
-            variant="destructive"
-            className="max-w-md bg-white shadow-lg border border-gray-200"
-          >
+          <Alert variant="destructive" className="max-w-md">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Location Error</AlertTitle>
             <AlertDescription>{locationError}</AlertDescription>

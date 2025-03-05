@@ -1,6 +1,5 @@
 // Google Maps API configuration
-import { getGoogleMapsApiKey } from "./apiKeys";
-export const googleMapsApiKey = getGoogleMapsApiKey();
+export const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 
 export const defaultMapOptions = {
   disableDefaultUI: true,
