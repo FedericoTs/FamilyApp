@@ -118,7 +118,7 @@ const Home: React.FC = () => {
       </main>
 
       <footer className="bg-gradient-to-r from-pink-500 to-purple-600 text-white text-center py-2 text-xs">
-        <p>© 2023 FamilyApp - Find family-friendly places near you</p>
+        <p>© 2025 FamilyApp - Find family-friendly places near you</p>
       </footer>
     </div>
   );

@@ -8,6 +8,7 @@ import {
   AlertCircle,
   Search,
   Loader2,
+  X,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
@@ -59,7 +60,7 @@ interface MapViewProps {
 
 const MapView = ({
   initialCenter = { lat: 40.7128, lng: -74.006 }, // New York City coordinates
-  initialZoom = 13,
+  initialZoom = 20,
 }: MapViewProps) => {
   const mapRef = useRef<google.maps.Map | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(
@@ -145,7 +146,8 @@ const MapView = ({
     setSelectedLocation(location);
     setCenter(location.position);
     setActiveMarker(location.id);
-    setShowInfoWindow(true);
+    // Don't show InfoWindow when selecting from bookmarks or location card
+    setShowInfoWindow(false);
 
     // Pan to the selected location
     if (mapRef.current) {
@@ -158,10 +160,17 @@ const MapView = ({
     if (location) {
       setSelectedLocation(location);
       setActiveMarker(locationId);
-      setShowInfoWindow(true);
+      // No longer showing InfoWindow
+      setShowInfoWindow(false);
+
+      // Pan to the selected location
+      if (mapRef.current) {
+        mapRef.current.panTo(location.position);
+      }
     }
   };
 
+  // InfoWindow has been removed, but keeping this function for future reference
   const handleInfoWindowClose = () => {
     setShowInfoWindow(false);
     setActiveMarker(null);
@@ -348,6 +357,7 @@ const MapView = ({
           zoom={mapZoom}
           options={defaultMapOptions}
           onLoad={onMapLoad}
+          onClick={() => setSelectedLocation(null)}
         >
           {/* User location marker */}
           {userLocation && (
@@ -375,34 +385,10 @@ const MapView = ({
                 url: `data:image/svg+xml;utf-8,${encodeURIComponent(
                   `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 24 24" fill="none" stroke="${location.isBookmarked ? "#ec4899" : "#9333ea"}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3" fill="${location.isBookmarked ? "#ec4899" : "#9333ea"}" stroke="white"/></svg>`,
                 )}`,
+                anchor: new google.maps.Point(16, 40),
               }}
             >
-              {showInfoWindow && activeMarker === location.id && (
-                <InfoWindow onCloseClick={handleInfoWindowClose}>
-                  <div className="p-2 max-w-[250px]">
-                    <h3 className="font-semibold text-gray-800">
-                      {location.name}
-                    </h3>
-                    <p className="text-sm text-gray-500">{location.type}</p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {location.distance} away
-                    </p>
-                    <div className="flex items-center mt-1">
-                      <span className="text-amber-500 text-sm mr-1">★</span>
-                      <span className="text-sm">{location.rating}</span>
-                    </div>
-                    <button
-                      className="mt-2 text-sm text-purple-600 hover:text-purple-800 font-medium"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedLocation(location);
-                      }}
-                    >
-                      View details
-                    </button>
-                  </div>
-                </InfoWindow>
-              )}
+              {/* InfoWindow removed - now using the card at the bottom */}
             </Marker>
           ))}
         </GoogleMap>
@@ -554,6 +540,7 @@ const MapView = ({
             isBookmarked={selectedLocation.isBookmarked}
             onBookmarkToggle={() => handleBookmarkToggle(selectedLocation)}
             onGetDirections={() => handleGetDirections(selectedLocation)}
+            onClose={() => setSelectedLocation(null)}
           />
         </div>
       )}

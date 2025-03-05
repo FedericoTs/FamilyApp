@@ -15,6 +15,7 @@ import {
   BookmarkCheck,
   Baby,
   Users,
+  X,
 } from "lucide-react";
 
 interface LocationCardProps {
@@ -27,6 +28,7 @@ interface LocationCardProps {
   isBookmarked?: boolean;
   onBookmarkToggle?: () => void;
   onGetDirections?: () => void;
+  onClose?: () => void;
 }
 
 const LocationCard = ({
@@ -39,10 +41,19 @@ const LocationCard = ({
   isBookmarked = false,
   onBookmarkToggle = () => {},
   onGetDirections = () => {},
+  onClose = () => {},
 }: LocationCardProps) => {
   return (
-    <Card className="w-[350px] h-[300px] overflow-hidden bg-white shadow-lg">
+    <Card className="w-[350px] overflow-hidden bg-white shadow-lg h-full relative">
       <div className="relative h-32">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-2 left-2 bg-white/80 rounded-full hover:bg-white z-10"
+          onClick={onClose}
+        >
+          <X className="h-4 w-4 text-gray-600" />
+        </Button>
         <img src={imageUrl} alt={name} className="w-full h-full object-cover" />
         <Button
           variant="ghost"
@@ -57,7 +68,6 @@ const LocationCard = ({
           )}
         </Button>
       </div>
-
       <CardHeader className="pb-2 pt-3">
         <div className="flex justify-between items-start">
           <CardTitle className="text-lg font-bold text-gray-800">
@@ -70,7 +80,6 @@ const LocationCard = ({
         </div>
         <p className="text-sm text-gray-500 mt-1">{distance}</p>
       </CardHeader>
-
       <CardContent className="py-0">
         <div className="flex flex-wrap gap-1 mb-3">
           {amenities.map((amenity, index) => (
@@ -95,7 +104,6 @@ const LocationCard = ({
           </div>
         </div>
       </CardContent>
-
       <CardFooter className="pt-3">
         <Button
           onClick={onGetDirections}

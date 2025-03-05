@@ -107,7 +107,7 @@ const FilterPanel = ({ isOpen = true, onFilterChange }: FilterPanelProps) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md w-[300px] max-h-[400px] overflow-auto border border-gray-200">
+    <div className="bg-white rounded-lg shadow-md w-[300px] overflow-auto border border-gray-200 max-h-full">
       <Collapsible open={isPanelOpen} onOpenChange={setIsPanelOpen}>
         <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-pink-50">
           <div className="flex items-center gap-2">
