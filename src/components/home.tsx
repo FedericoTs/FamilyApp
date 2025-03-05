@@ -33,51 +33,8 @@ const Home: React.FC = () => {
     lng: number;
   }>({ lat: 40.7128, lng: -74.006 }); // Default to NYC
 
-  // Mock locations data
-  const [locations] = useState<Location[]>([
-    {
-      id: "1",
-      name: "Central Park Playground",
-      type: "Playground",
-      position: { lat: 40.7812, lng: -73.9665 },
-      distance: "0.5 miles",
-      rating: 4.8,
-      amenities: ["Restrooms", "Water Fountain", "Picnic Area", "Shade"],
-      ageRange: "2-10 years",
-      address: "123 Park Avenue, New York, NY",
-      imageUrl:
-        "https://images.unsplash.com/photo-1596997000103-e597b3ca50df?w=600&q=80",
-      isBookmarked: true,
-    },
-    {
-      id: "2",
-      name: "Kid-Friendly Café",
-      type: "Restaurant",
-      position: { lat: 40.7215, lng: -73.9991 },
-      distance: "0.8 miles",
-      rating: 4.5,
-      amenities: ["High Chairs", "Kids Menu", "Changing Table", "Play Area"],
-      ageRange: "0-12 years",
-      address: "456 Main Street, New York, NY",
-      imageUrl:
-        "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80",
-      isBookmarked: false,
-    },
-    {
-      id: "3",
-      name: "Children's Museum",
-      type: "Museum",
-      position: { lat: 40.7045, lng: -74.0123 },
-      distance: "1.2 miles",
-      rating: 4.9,
-      amenities: ["Interactive Exhibits", "Restrooms", "Café", "Gift Shop"],
-      ageRange: "3-12 years",
-      address: "789 Education Lane, New York, NY",
-      imageUrl:
-        "https://images.unsplash.com/photo-1594122230689-45899d9e6f69?w=600&q=80",
-      isBookmarked: true,
-    },
-  ]);
+  // Locations state - will be populated by MapView component
+  const [locations, setLocations] = useState<Location[]>([]);
 
   // Try to get user's location on component mount
   useEffect(() => {

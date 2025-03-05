@@ -6,6 +6,8 @@ import {
   Minus,
   Compass,
   AlertCircle,
+  Search,
+  Loader2,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
@@ -29,6 +31,12 @@ import {
   defaultMapOptions,
   getCurrentLocation,
 } from "@/lib/googleMaps";
+import {
+  searchNearby,
+  transformPlacesResponse,
+  calculateDistance,
+  kmToMiles,
+} from "@/lib/placesApi";
 
 interface Location {
   id: string;
@@ -80,58 +88,24 @@ const MapView = ({
   });
 
   // Mock locations data
-  const [locations] = useState<Location[]>([
-    {
-      id: "1",
-      name: "Central Park Playground",
-      type: "Playground",
-      position: { lat: 40.7812, lng: -73.9665 },
-      distance: "0.5 miles",
-      rating: 4.8,
-      amenities: ["Restrooms", "Water Fountain", "Picnic Area", "Shade"],
-      ageRange: "2-10 years",
-      address: "123 Park Avenue, New York, NY",
-      imageUrl:
-        "https://images.unsplash.com/photo-1596997000103-e597b3ca50df?w=600&q=80",
-      isBookmarked: true,
-    },
-    {
-      id: "2",
-      name: "Kid-Friendly Café",
-      type: "Restaurant",
-      position: { lat: 40.7215, lng: -73.9991 },
-      distance: "0.8 miles",
-      rating: 4.5,
-      amenities: ["High Chairs", "Kids Menu", "Changing Table", "Play Area"],
-      ageRange: "0-12 years",
-      address: "456 Main Street, New York, NY",
-      imageUrl:
-        "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80",
-      isBookmarked: false,
-    },
-    {
-      id: "3",
-      name: "Children's Museum",
-      type: "Museum",
-      position: { lat: 40.7045, lng: -74.0123 },
-      distance: "1.2 miles",
-      rating: 4.9,
-      amenities: ["Interactive Exhibits", "Restrooms", "Café", "Gift Shop"],
-      ageRange: "3-12 years",
-      address: "789 Education Lane, New York, NY",
-      imageUrl:
-        "https://images.unsplash.com/photo-1594122230689-45899d9e6f69?w=600&q=80",
-      isBookmarked: true,
-    },
-  ]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [isLoadingPlaces, setIsLoadingPlaces] = useState(false);
+  const [placesError, setPlacesError] = useState<string | null>(null);
 
-  // Initialize bookmarked locations
+  // Initialize with default locations and fetch nearby places when user location is available
   useEffect(() => {
     const initialBookmarks = locations.filter(
       (location) => location.isBookmarked,
     );
     setBookmarkedLocations(initialBookmarks);
   }, [locations]);
+
+  // Fetch nearby places when user location is available
+  useEffect(() => {
+    if (userLocation && isLoaded) {
+      fetchNearbyPlaces(userLocation);
+    }
+  }, [userLocation, isLoaded]);
 
   // Get user's current location
   useEffect(() => {
@@ -236,9 +210,106 @@ const MapView = ({
     }
   };
 
+  const fetchNearbyPlaces = async (
+    location: { lat: number; lng: number },
+    filters?: any,
+  ) => {
+    if (!googleMapsApiKey) {
+      setPlacesError("Google Maps API key is missing");
+      return;
+    }
+
+    setIsLoadingPlaces(true);
+    setPlacesError(null);
+
+    try {
+      // Determine place types based on filters
+      let placeTypes = [
+        "park",
+        "amusement_park",
+        "museum",
+        "restaurant",
+        "library",
+        "aquarium",
+        "zoo",
+      ];
+
+      if (filters?.locationTypes && filters.locationTypes.length > 0) {
+        // Map UI filter categories to Google Places API types
+        const typeMapping: Record<string, string[]> = {
+          Parks: ["park"],
+          Playgrounds: ["park"],
+          "Kid-Friendly Restaurants": ["restaurant", "cafe"],
+          "Children's Museums": ["museum"],
+          Libraries: ["library"],
+          "Indoor Activities": [
+            "amusement_park",
+            "aquarium",
+            "movie_theater",
+            "bowling_alley",
+          ],
+        };
+
+        // Collect all types from selected categories
+        placeTypes = filters.locationTypes.flatMap(
+          (type: string) => typeMapping[type] || [],
+        );
+
+        // If no valid types are found, use defaults
+        if (placeTypes.length === 0) {
+          placeTypes = [
+            "park",
+            "amusement_park",
+            "museum",
+            "restaurant",
+            "library",
+          ];
+        }
+      }
+
+      // Calculate radius in meters based on filter distance (in miles)
+      const radiusInMeters = (filters?.distance || 5) * 1609.34;
+
+      // Call the Places API
+      const response = await searchNearby(
+        googleMapsApiKey,
+        location,
+        radiusInMeters,
+        placeTypes,
+      );
+
+      // Transform the response to our Location format
+      let transformedLocations = transformPlacesResponse(response);
+
+      // Calculate actual distances
+      transformedLocations = transformedLocations.map((loc) => {
+        const distanceInKm = calculateDistance(
+          location.lat,
+          location.lng,
+          loc.position.lat,
+          loc.position.lng,
+        );
+
+        return {
+          ...loc,
+          distance: kmToMiles(distanceInKm),
+        };
+      });
+
+      // Update locations state
+      setLocations(transformedLocations);
+    } catch (error) {
+      console.error("Error fetching nearby places:", error);
+      setPlacesError("Failed to fetch nearby places. Please try again.");
+    } finally {
+      setIsLoadingPlaces(false);
+    }
+  };
+
   const handleFilterChange = (filters: any) => {
-    // In a real app, this would filter the locations shown on the map
-    console.log("Filters applied:", filters);
+    if (userLocation) {
+      fetchNearbyPlaces(userLocation, filters);
+    }
   };
 
   if (loadError) {
@@ -348,6 +419,27 @@ const MapView = ({
         </div>
       )}
 
+      {/* Loading indicator for places */}
+      {isLoadingPlaces && (
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-10 bg-white py-2 px-4 rounded-full shadow-md flex items-center">
+          <Loader2 className="h-4 w-4 animate-spin mr-2 text-purple-600" />
+          <span className="text-sm font-medium">
+            Finding family-friendly places...
+          </span>
+        </div>
+      )}
+
+      {/* Places error message */}
+      {placesError && (
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-10">
+          <Alert variant="destructive" className="max-w-md">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error Finding Places</AlertTitle>
+            <AlertDescription>{placesError}</AlertDescription>
+          </Alert>
+        </div>
+      )}
+
       {/* Map Controls */}
       <div className="absolute top-4 right-4 flex flex-col gap-2">
         <TooltipProvider>
@@ -418,6 +510,25 @@ const MapView = ({
             </TooltipTrigger>
             <TooltipContent side="left">
               <p>My Location</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="secondary"
+                size="icon"
+                className="bg-white shadow-md hover:bg-gray-100"
+                onClick={() => userLocation && fetchNearbyPlaces(userLocation)}
+                disabled={isLoadingPlaces || !userLocation}
+              >
+                <Search className="h-5 w-5 text-purple-700" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p>Search Nearby</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
