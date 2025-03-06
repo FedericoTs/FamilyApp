@@ -34,6 +34,7 @@ interface SidebarProps {
   username?: string;
   avatarUrl?: string;
   selectedCategory?: string;
+  nearbyOpen?: boolean;
 }
 
 const Sidebar = ({
@@ -43,8 +44,9 @@ const Sidebar = ({
   username = "Sarah Johnson",
   avatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
   selectedCategory = null,
+  nearbyOpen = true,
 }: SidebarProps) => {
-  const [nearbyOpen, setNearbyOpen] = useState(true);
+  const [isNearbyOpen, setIsNearbyOpen] = useState(nearbyOpen);
 
   const locationCategories = [
     {
@@ -89,39 +91,42 @@ const Sidebar = ({
 
       <div className="flex-1 overflow-auto px-3 py-2">
         <nav className="space-y-1">
-          <Collapsible open={nearbyOpen} onOpenChange={setNearbyOpen}>
-            <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-md hover:bg-gray-100 text-gray-700 font-medium">
-              <div className="flex items-center">
-                <Compass className="h-5 w-5 text-purple-600 mr-3" />
-                <span>Nearby</span>
-              </div>
-              {nearbyOpen ? (
-                <ChevronDown className="h-4 w-4 text-gray-500" />
-              ) : (
-                <ChevronRight className="h-4 w-4 text-gray-500" />
-              )}
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pl-10 pr-2 py-1 space-y-1">
-              {locationCategories.map((category) => (
-                <button
-                  key={category.name}
-                  className={`flex items-center w-full p-2 rounded-md ${selectedCategory === category.name ? "bg-purple-100 text-purple-700 font-medium" : "hover:bg-purple-50 text-gray-600"} text-sm`}
-                  onClick={() => {
-                    // Notify parent component about category selection
-                    onCategorySelect(category.name);
+          <Link to="/" className="block">
+            <Collapsible open={isNearbyOpen} onOpenChange={setIsNearbyOpen}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-md hover:bg-gray-100 text-gray-700 font-medium">
+                <div className="flex items-center">
+                  <Compass className="h-5 w-5 text-purple-600 mr-3" />
+                  <span>Nearby</span>
+                </div>
+                {isNearbyOpen ? (
+                  <ChevronDown className="h-4 w-4 text-gray-500" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-gray-500" />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pl-10 pr-2 py-1 space-y-1">
+                {locationCategories.map((category) => (
+                  <Link
+                    to="/"
+                    key={category.name}
+                    className={`flex items-center w-full p-2 rounded-md ${selectedCategory === category.name ? "bg-purple-100 text-purple-700 font-medium" : "hover:bg-purple-50 text-gray-600"} text-sm`}
+                    onClick={() => {
+                      // Notify parent component about category selection
+                      onCategorySelect(category.name);
 
-                    // Close the sidebar on mobile after selection (optional)
-                    if (window.innerWidth < 768 && onClose) {
-                      onClose();
-                    }
-                  }}
-                >
-                  {category.icon}
-                  <span className="ml-2">{category.name}</span>
-                </button>
-              ))}
-            </CollapsibleContent>
-          </Collapsible>
+                      // Close the sidebar on mobile after selection (optional)
+                      if (window.innerWidth < 768 && onClose) {
+                        onClose();
+                      }
+                    }}
+                  >
+                    {category.icon}
+                    <span className="ml-2">{category.name}</span>
+                  </Link>
+                ))}
+              </CollapsibleContent>
+            </Collapsible>
+          </Link>
 
           <Link
             to="/discover"
@@ -161,7 +166,7 @@ const Sidebar = ({
         <Separator className="my-3" />
 
         <div className="flex items-center justify-between">
-          <div className="flex items-center">
+          <Link to="/profile" className="flex items-center">
             <Avatar className="h-8 w-8 mr-2">
               <AvatarImage src={avatarUrl} alt={username} />
               <AvatarFallback>{username.charAt(0)}</AvatarFallback>
@@ -169,7 +174,7 @@ const Sidebar = ({
             <div>
               <p className="text-sm font-medium">{username}</p>
             </div>
-          </div>
+          </Link>
           <Button
             variant="ghost"
             size="icon"
