@@ -1,9 +1,11 @@
 import { Suspense, lazy } from "react";
-import { useRoutes, Routes, Route } from "react-router-dom";
+import { useRoutes, Routes, Route, Navigate } from "react-router-dom";
 import Home from "./components/home";
 import routes from "tempo-routes";
 import Sidebar from "./components/Sidebar";
 import MapHeader from "./components/MapHeader";
+import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // Lazy load pages for better performance
 const Discover = lazy(() => import("./pages/Discover"));
@@ -11,63 +13,92 @@ const Community = lazy(() => import("./pages/Community"));
 const Family = lazy(() => import("./pages/Family"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Profile = lazy(() => import("./pages/Profile"));
+const Landing = lazy(() => import("./pages/Landing"));
+const Login = lazy(() => import("./pages/Login"));
 
 function App() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center h-screen">
-          <p>Loading...</p>
-        </div>
-      }
-    >
-      <>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route
-            path="/discover"
-            element={
-              <AppLayout>
-                <Discover />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/community"
-            element={
-              <AppLayout>
-                <Community />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/family"
-            element={
-              <AppLayout>
-                <Family />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <AppLayout>
-                <Settings />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <AppLayout>
-                <Profile />
-              </AppLayout>
-            }
-          />
-        </Routes>
-        {import.meta.env.VITE_TEMPO === "true" && useRoutes(routes)}
-      </>
-    </Suspense>
+    <AuthProvider>
+      <Suspense
+        fallback={
+          <div className="flex items-center justify-center h-screen">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-700"></div>
+          </div>
+        }
+      >
+        <>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
+
+            {/* Protected routes */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Home />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/discover"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Discover />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/community"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Community />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/family"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Family />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Settings />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Profile />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Redirect to landing page for any unknown routes */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+          {import.meta.env.VITE_TEMPO === "true" && useRoutes(routes)}
+        </>
+      </Suspense>
+    </AuthProvider>
   );
 }
 

@@ -95,55 +95,70 @@ const MapHeader = ({
 
     setIsLoading(true);
     try {
-      // For a production app, we would use a server-side API endpoint
-      // to protect our API key. Here's how it would be implemented:
+      // In a production app, this would be a server-side API call to protect the API key
+      // Here we're simulating what the actual API response would look like
 
-      // 1. Create a server endpoint that proxies requests to Google Places API
-      const apiEndpoint = "/api/places/autocomplete";
-
-      // 2. Prepare the request parameters according to Google Places API docs
-      const requestData = {
-        input: query, // The user's input text
-        key: googleMapsApiKey,
-        types: "establishment", // Focus on places rather than addresses
-        language: "en", // Use English language
-      };
-
-      // 3. Add location bias if we have the user's location
-      // This would come from a shared state or context in a real implementation
-      // if (userLocation) {
-      //   requestData.location = `${userLocation.lat},${userLocation.lng}`;
-      //   requestData.radius = 50000; // 50km radius (maximum allowed)
-      // }
-
-      // 4. For family-friendly results, we could add specific keywords
-      // For example, we could append "family friendly" to the input
-      // or filter results on the server side
-
-      // 5. In production, we would make the actual API call:
-      // const response = await fetch(apiEndpoint, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(requestData)
-      // });
-      // const data = await response.json();
-      // const suggestions = data.predictions.map(p => p.description);
-
-      // For demo purposes, simulate a network delay
+      // Simulate network delay
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      // Generate suggestions based on the query with family-friendly focus
-      // In a real app, these would come from the API response
-      const mockSuggestions = [
-        `${query} Park`,
-        `${query} Playground`,
-        `${query} Children's Museum`,
-        `${query} Family Restaurant`,
-        `Family-friendly ${query}`,
-        `Kid-friendly ${query} near me`,
-      ];
+      // This is what the actual API response structure would look like
+      // We're simulating the response from Google Places Autocomplete API
+      const mockApiResponse = {
+        predictions: [
+          {
+            description: `${query} Park`,
+            place_id: "place_id_1",
+            structured_formatting: {
+              main_text: `${query} Park`,
+              secondary_text: "New York, NY, USA",
+            },
+            types: ["park", "point_of_interest", "establishment"],
+          },
+          {
+            description: `${query} Playground`,
+            place_id: "place_id_2",
+            structured_formatting: {
+              main_text: `${query} Playground`,
+              secondary_text: "New York, NY, USA",
+            },
+            types: ["park", "point_of_interest", "establishment"],
+          },
+          {
+            description: `${query} Children's Museum`,
+            place_id: "place_id_3",
+            structured_formatting: {
+              main_text: `${query} Children's Museum`,
+              secondary_text: "New York, NY, USA",
+            },
+            types: ["museum", "point_of_interest", "establishment"],
+          },
+          {
+            description: `${query} Family Restaurant`,
+            place_id: "place_id_4",
+            structured_formatting: {
+              main_text: `${query} Family Restaurant`,
+              secondary_text: "New York, NY, USA",
+            },
+            types: ["restaurant", "food", "point_of_interest", "establishment"],
+          },
+          {
+            description: `Family-friendly ${query}`,
+            place_id: "place_id_5",
+            structured_formatting: {
+              main_text: `Family-friendly ${query}`,
+              secondary_text: "New York, NY, USA",
+            },
+            types: ["point_of_interest", "establishment"],
+          },
+        ],
+        status: "OK",
+      };
 
-      setSuggestions(mockSuggestions);
+      // Extract just the descriptions from the predictions
+      // This is what we would do with the actual API response
+      const suggestions = mockApiResponse.predictions.map((p) => p.description);
+
+      setSuggestions(suggestions);
       setShowSuggestions(true);
     } catch (error) {
       console.error("Error fetching autocomplete suggestions:", error);

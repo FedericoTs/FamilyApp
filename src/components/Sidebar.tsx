@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   MapPin,
   Compass,
@@ -26,6 +26,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "./ui/collapsible";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -41,12 +42,26 @@ const Sidebar = ({
   isOpen = true,
   onClose = () => {},
   onCategorySelect = () => {},
-  username = "Sarah Johnson",
-  avatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
+  username,
+  avatarUrl,
   selectedCategory = null,
   nearbyOpen = true,
 }: SidebarProps) => {
   const [isNearbyOpen, setIsNearbyOpen] = useState(nearbyOpen);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  // Use user data from auth context if available
+  const displayName = username || user?.user_metadata?.full_name || "User";
+  const userInitial = displayName.charAt(0);
+  const userAvatar =
+    avatarUrl ||
+    `https://api.dicebear.com/7.x/avataaars/svg?seed=${displayName}`;
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login");
+  };
 
   const locationCategories = [
     {
@@ -91,7 +106,7 @@ const Sidebar = ({
 
       <div className="flex-1 overflow-auto px-3 py-2">
         <nav className="space-y-1">
-          <Link to="/" className="block">
+          <Link to="/dashboard" className="block">
             <Collapsible open={isNearbyOpen} onOpenChange={setIsNearbyOpen}>
               <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-md hover:bg-gray-100 text-gray-700 font-medium">
                 <div className="flex items-center">
@@ -107,7 +122,7 @@ const Sidebar = ({
               <CollapsibleContent className="pl-10 pr-2 py-1 space-y-1">
                 {locationCategories.map((category) => (
                   <Link
-                    to="/"
+                    to="/dashboard"
                     key={category.name}
                     className={`flex items-center w-full p-2 rounded-md ${selectedCategory === category.name ? "bg-purple-100 text-purple-700 font-medium" : "hover:bg-purple-50 text-gray-600"} text-sm`}
                     onClick={() => {
@@ -168,17 +183,18 @@ const Sidebar = ({
         <div className="flex items-center justify-between">
           <Link to="/profile" className="flex items-center">
             <Avatar className="h-8 w-8 mr-2">
-              <AvatarImage src={avatarUrl} alt={username} />
-              <AvatarFallback>{username.charAt(0)}</AvatarFallback>
+              <AvatarImage src={userAvatar} alt={displayName} />
+              <AvatarFallback>{userInitial}</AvatarFallback>
             </Avatar>
             <div>
-              <p className="text-sm font-medium">{username}</p>
+              <p className="text-sm font-medium">{displayName}</p>
             </div>
           </Link>
           <Button
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-gray-500 hover:text-red-500"
+            onClick={handleSignOut}
           >
             <LogOut className="h-4 w-4" />
           </Button>
