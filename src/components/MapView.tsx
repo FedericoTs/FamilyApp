@@ -323,6 +323,19 @@ const MapView = ({
             "gym",
             "zoo",
           ],
+          Shops: [
+            "clothing_store",
+            "department_store",
+            "shoe_store",
+            "shopping_mall",
+          ],
+          "Baby Care": [
+            "pharmacy",
+            "supermarket",
+            "department_store",
+            "shopping_mall",
+            "convenience_store",
+          ],
           "Indoor Activities": [
             "movie_theater",
             "bowling_alley",
@@ -482,6 +495,12 @@ const MapView = ({
                 Spa: { color: "#0ea5e9" },
                 Gym: { color: "#84cc16" },
                 "Bowling Alley": { color: "#f97316" },
+                "Clothing Store": { color: "#ec4899" },
+                "Department Store": { color: "#ec4899" },
+                "Shoe Store": { color: "#ec4899" },
+                Pharmacy: { color: "#0ea5e9" },
+                Supermarket: { color: "#0ea5e9" },
+                "Convenience Store": { color: "#0ea5e9" },
               };
 
               // Default to Park if type not found

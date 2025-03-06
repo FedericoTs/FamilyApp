@@ -80,6 +80,12 @@ export const transformPlacesResponse = (placesResponse: any) => {
         spa: "Spa",
         gym: "Gym",
         bowling_alley: "Bowling Alley",
+        clothing_store: "Clothing Store",
+        department_store: "Department Store",
+        shoe_store: "Shoe Store",
+        pharmacy: "Pharmacy",
+        supermarket: "Supermarket",
+        convenience_store: "Convenience Store",
       };
 
       // Find the first type that has a mapping

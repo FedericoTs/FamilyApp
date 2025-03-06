@@ -36,12 +36,13 @@ const FilterPanel = ({ isOpen = true, onFilterChange }: FilterPanelProps) => {
   const [isPanelOpen, setIsPanelOpen] = useState(isOpen);
 
   const locationTypeOptions = [
-    { id: "parks", label: "Parks" },
     { id: "playgrounds", label: "Playgrounds" },
     { id: "restaurants", label: "Kid-Friendly Restaurants" },
     { id: "museums", label: "Children's Museums" },
     { id: "libraries", label: "Libraries" },
-    { id: "activities", label: "Indoor Activities" },
+    { id: "indoor", label: "Indoor" },
+    { id: "shops", label: "Shops" },
+    { id: "babyCare", label: "Baby Care" },
   ];
 
   const ageRangeOptions = [

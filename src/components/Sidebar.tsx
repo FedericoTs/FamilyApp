@@ -15,6 +15,8 @@ import {
   UtensilsCrossed,
   TreePine,
   Home,
+  ShoppingBag,
+  Baby,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
@@ -64,6 +66,14 @@ const Sidebar = ({
       icon: <Coffee className="h-4 w-4 text-purple-600" />,
     },
     { name: "Libraries", icon: <Library className="h-4 w-4 text-blue-600" /> },
+    {
+      name: "Shops",
+      icon: <ShoppingBag className="h-4 w-4 text-pink-500" />,
+    },
+    {
+      name: "Baby Care",
+      icon: <Baby className="h-4 w-4 text-blue-500" />,
+    },
   ];
 
   return (
