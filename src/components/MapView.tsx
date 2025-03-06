@@ -166,11 +166,14 @@ const MapView = ({
   const [showInfoWindow, setShowInfoWindow] = useState(false);
   const [activeMarker, setActiveMarker] = useState<string | null>(null);
 
+  // Define libraries array outside component to prevent re-creation on each render
+  const libraries = ["places"];
+
   // Load Google Maps API
   const { isLoaded, loadError } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey,
-    libraries: ["places"],
+    libraries,
   });
 
   // Mock locations data
@@ -186,9 +189,9 @@ const MapView = ({
     setBookmarkedLocations(initialBookmarks);
   }, [locations]);
 
-  // Fetch nearby places when user location is available
+  // Fetch nearby places when user location is available and Google Maps is loaded
   useEffect(() => {
-    if (userLocation && isLoaded) {
+    if (userLocation && isLoaded && window.google && window.google.maps) {
       fetchNearbyPlaces(userLocation);
     }
   }, [userLocation, isLoaded]);
@@ -197,7 +200,7 @@ const MapView = ({
   useEffect(() => {
     const handleSearchEvent = (event: CustomEvent) => {
       const { query } = event.detail;
-      if (query && userLocation) {
+      if (query && userLocation && window.google && window.google.maps) {
         fetchNearbyPlaces(userLocation, { searchQuery: query });
       }
     };
@@ -229,7 +232,7 @@ const MapView = ({
 
     const handleFilterByCategory = (event: any) => {
       const { category } = event.detail;
-      if (userLocation) {
+      if (userLocation && window.google && window.google.maps) {
         // Map category names to location types for filtering
         const categoryFilters = {
           locationTypes: [category],

@@ -1,4 +1,4 @@
-// Google Places API functions
+// Google Places API functions using Google Maps JavaScript API
 
 // Search for places near a location
 export const searchNearby = async (
@@ -13,44 +13,59 @@ export const searchNearby = async (
     "library",
   ],
 ) => {
-  try {
-    const response = await fetch(
-      "https://places.googleapis.com/v1/places:searchNearby",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Goog-Api-Key": apiKey,
-          "X-Goog-FieldMask":
-            "places.displayName,places.formattedAddress,places.location,places.types,places.rating,places.photos",
-        },
-        body: JSON.stringify({
-          includedTypes: types,
-          maxResultCount: 20,
-          locationRestriction: {
-            circle: {
-              center: {
-                latitude: center.lat,
-                longitude: center.lng,
+  return new Promise((resolve, reject) => {
+    try {
+      // Create a dummy div for the map (required by PlacesService)
+      const mapDiv = document.createElement("div");
+      mapDiv.style.display = "none";
+      document.body.appendChild(mapDiv);
+
+      // Create a map instance (required for PlacesService)
+      const map = new google.maps.Map(mapDiv, {
+        center: center,
+        zoom: 15,
+      });
+
+      // Create PlacesService instance
+      const service = new google.maps.places.PlacesService(map);
+
+      // Prepare request
+      const request: google.maps.places.PlaceSearchRequest = {
+        location: new google.maps.LatLng(center.lat, center.lng),
+        radius: radius,
+        type: types[0] as google.maps.places.PlaceType, // Primary type
+      };
+
+      // Execute nearby search
+      service.nearbySearch(request, (results, status) => {
+        // Clean up the dummy div
+        document.body.removeChild(mapDiv);
+
+        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+          // Format the response to match our expected structure
+          const formattedResponse = {
+            places: results.map((place) => ({
+              displayName: { text: place.name },
+              formattedAddress: place.vicinity,
+              location: {
+                latitude: place.geometry?.location?.lat(),
+                longitude: place.geometry?.location?.lng(),
               },
-              radius: radius,
-            },
-          },
-          rankPreference: "DISTANCE",
-        }),
-      },
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Places API error: ${JSON.stringify(errorData)}`);
+              types: place.types,
+              rating: place.rating,
+              photos: place.photos ? [{ name: place.photos[0]?.getUrl() }] : [],
+            })),
+          };
+          resolve(formattedResponse);
+        } else {
+          reject(new Error(`Places API error: ${status}`));
+        }
+      });
+    } catch (error) {
+      console.error("Error searching nearby places:", error);
+      reject(error);
     }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Error searching nearby places:", error);
-    throw error;
-  }
+  });
 };
 
 // Transform Places API response to our Location format
@@ -101,7 +116,8 @@ export const transformPlacesResponse = (placesResponse: any) => {
     let imageUrl =
       "https://images.unsplash.com/photo-1596997000103-e597b3ca50df?w=600&q=80";
     if (place.photos && place.photos.length > 0 && place.photos[0].name) {
-      imageUrl = `https://places.googleapis.com/v1/${place.photos[0].name}/media?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&maxHeightPx=400&maxWidthPx=400`;
+      // If using the Google Maps JavaScript API, the photo URL is already provided
+      imageUrl = place.photos[0].name;
     }
 
     return {

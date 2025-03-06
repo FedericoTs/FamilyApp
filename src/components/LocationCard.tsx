@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Card,
   CardContent,
@@ -16,7 +16,9 @@ import {
   Baby,
   Users,
   X,
+  Eye,
 } from "lucide-react";
+import LocationDetailsModal from "./LocationDetailsModal";
 
 interface LocationCardProps {
   name?: string;
@@ -43,6 +45,7 @@ const LocationCard = ({
   onGetDirections = () => {},
   onClose = () => {},
 }: LocationCardProps) => {
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   return (
     <Card className="w-[350px] overflow-hidden bg-white shadow-lg h-full relative">
       <div className="relative h-32">
@@ -104,7 +107,7 @@ const LocationCard = ({
           </div>
         </div>
       </CardContent>
-      <CardFooter className="pt-3">
+      <CardFooter className="pt-3 flex flex-col gap-2">
         <Button
           onClick={onGetDirections}
           className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
@@ -112,6 +115,22 @@ const LocationCard = ({
           <Navigation className="mr-2 h-4 w-4" />
           Get Directions
         </Button>
+        <Button
+          variant="outline"
+          className="w-full border-purple-200 text-purple-700 hover:bg-purple-50"
+          onClick={() => setShowDetailsModal(true)}
+        >
+          <Eye className="mr-2 h-4 w-4" />
+          View Details
+        </Button>
+
+        {/* Location Details Modal */}
+        <LocationDetailsModal
+          isOpen={showDetailsModal}
+          onClose={() => setShowDetailsModal(false)}
+          locationName={name}
+          onGetDirections={onGetDirections}
+        />
       </CardFooter>
     </Card>
   );
