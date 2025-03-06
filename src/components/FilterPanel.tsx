@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Filter, MapPin, Clock, Baby } from "lucide-react";
+import { Filter, Clock, Baby } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -21,29 +21,17 @@ interface FilterPanelProps {
 }
 
 interface FilterOptions {
-  locationTypes: string[];
   distance: number;
   ageRanges: string[];
 }
 
 const FilterPanel = ({ isOpen = true, onFilterChange }: FilterPanelProps) => {
   const [filters, setFilters] = useState<FilterOptions>({
-    locationTypes: [],
     distance: 1,
     ageRanges: [],
   });
 
   const [isPanelOpen, setIsPanelOpen] = useState(isOpen);
-
-  const locationTypeOptions = [
-    { id: "playgrounds", label: "Playgrounds" },
-    { id: "restaurants", label: "Kid-Friendly Restaurants" },
-    { id: "museums", label: "Children's Museums" },
-    { id: "libraries", label: "Libraries" },
-    { id: "indoor", label: "Indoor" },
-    { id: "shops", label: "Shops" },
-    { id: "babyCare", label: "Baby Care" },
-  ];
 
   const ageRangeOptions = [
     { id: "toddler", label: "Toddler (0-3)" },
@@ -52,25 +40,6 @@ const FilterPanel = ({ isOpen = true, onFilterChange }: FilterPanelProps) => {
     { id: "preteen", label: "Preteen (11-12)" },
     { id: "teen", label: "Teen (13+)" },
   ];
-
-  const handleLocationTypeChange = (
-    checked: boolean | "indeterminate",
-    type: string,
-  ) => {
-    let updatedTypes = [...filters.locationTypes];
-
-    if (checked) {
-      if (!updatedTypes.includes(type)) {
-        updatedTypes.push(type);
-      }
-    } else {
-      updatedTypes = updatedTypes.filter((t) => t !== type);
-    }
-
-    const updatedFilters = { ...filters, locationTypes: updatedTypes };
-    setFilters(updatedFilters);
-    onFilterChange?.(updatedFilters);
-  };
 
   const handleAgeRangeChange = (
     checked: boolean | "indeterminate",
@@ -95,6 +64,20 @@ const FilterPanel = ({ isOpen = true, onFilterChange }: FilterPanelProps) => {
     const updatedFilters = { ...filters, distance: value[0] };
     setFilters(updatedFilters);
     onFilterChange?.(updatedFilters);
+
+    // Dispatch a custom event for global distance filtering
+    // Include the current category if available
+    const currentCategory = document
+      .querySelector(".sidebar-category-active")
+      ?.getAttribute("data-category");
+    const distanceEvent = new CustomEvent("filter:maxDistance", {
+      detail: {
+        maxDistance: value[0],
+        preserveCategory: true,
+        category: currentCategory,
+      },
+    });
+    window.dispatchEvent(distanceEvent);
   };
 
   const resetFilters = () => {
@@ -141,39 +124,6 @@ const FilterPanel = ({ isOpen = true, onFilterChange }: FilterPanelProps) => {
         <CollapsibleContent>
           <div className="p-4">
             <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="location-type">
-                <AccordionTrigger className="py-3">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-blue-500" />
-                    <span className="text-sm">Location Type</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="space-y-2 pl-6 pt-2">
-                    {locationTypeOptions.map((option) => (
-                      <div
-                        key={option.id}
-                        className="flex items-center space-x-2"
-                      >
-                        <Checkbox
-                          id={`location-${option.id}`}
-                          checked={filters.locationTypes.includes(option.label)}
-                          onCheckedChange={(checked) =>
-                            handleLocationTypeChange(checked, option.label)
-                          }
-                        />
-                        <label
-                          htmlFor={`location-${option.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        >
-                          {option.label}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
               <AccordionItem value="distance">
                 <AccordionTrigger className="py-3">
                   <div className="flex items-center gap-2">
@@ -190,7 +140,10 @@ const FilterPanel = ({ isOpen = true, onFilterChange }: FilterPanelProps) => {
                         step={0.1}
                         onValueChange={handleDistanceChange}
                       />
-                      <div className="flex justify-between mt-2 text-xs text-gray-500">
+                      <div
+                        className="flex justify-between mt-2 text-xs text-gray-500 filter-panel-distance"
+                        data-distance={filters.distance}
+                      >
                         <span>0 km</span>
                         <span>{filters.distance.toFixed(1)} km</span>
                         <span>2 km</span>

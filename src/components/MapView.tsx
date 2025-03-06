@@ -251,6 +251,38 @@ const MapView = ({
     };
   }, [userLocation]);
 
+  // Listen for global max distance filter events
+  useEffect(() => {
+    const handleMaxDistanceFilter = (event: CustomEvent) => {
+      const { maxDistance, preserveCategory, category } = event.detail;
+      if (userLocation && window.google && window.google.maps) {
+        // Apply the max distance filter globally while preserving category
+        const filters: any = {
+          distance: maxDistance,
+        };
+
+        // If we need to preserve the category and have a category
+        if (preserveCategory && category) {
+          filters.locationTypes = [category];
+        }
+
+        fetchNearbyPlaces(userLocation, filters);
+      }
+    };
+
+    window.addEventListener(
+      "filter:maxDistance" as any,
+      handleMaxDistanceFilter as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "filter:maxDistance" as any,
+        handleMaxDistanceFilter as EventListener,
+      );
+    };
+  }, [userLocation]);
+
   const getUserLocation = useCallback(async () => {
     try {
       setLocationError(null);

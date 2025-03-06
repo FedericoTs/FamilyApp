@@ -124,10 +124,30 @@ const Sidebar = ({
                   <Link
                     to="/dashboard"
                     key={category.name}
-                    className={`flex items-center w-full p-2 rounded-md ${selectedCategory === category.name ? "bg-purple-100 text-purple-700 font-medium" : "hover:bg-purple-50 text-gray-600"} text-sm`}
+                    data-category={category.name}
+                    className={`flex items-center w-full p-2 rounded-md ${selectedCategory === category.name ? "bg-purple-100 text-purple-700 font-medium sidebar-category-active" : "hover:bg-purple-50 text-gray-600"} text-sm`}
                     onClick={() => {
                       // Notify parent component about category selection
                       onCategorySelect(category.name);
+
+                      // Get current distance filter value from FilterPanel if available
+                      const filterPanel = document.querySelector(
+                        ".filter-panel-distance",
+                      );
+                      const distanceValue = filterPanel
+                        ? parseFloat(
+                            filterPanel.getAttribute("data-distance") || "1",
+                          )
+                        : 1;
+
+                      // Dispatch a custom event for global distance filtering
+                      const distanceEvent = new CustomEvent(
+                        "filter:maxDistance",
+                        {
+                          detail: { maxDistance: distanceValue },
+                        },
+                      );
+                      window.dispatchEvent(distanceEvent);
 
                       // Close the sidebar on mobile after selection (optional)
                       if (window.innerWidth < 768 && onClose) {
