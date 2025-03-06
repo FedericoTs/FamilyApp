@@ -81,7 +81,16 @@ const Home: React.FC = () => {
   const handleCategorySelect = (category: string) => {
     setSelectedCategory(category);
     console.log(`Selected category: ${category}`);
-    // In a real app, this would filter the map to show only locations of this category
+
+    // Filter the map to show only locations of this category
+    // This will be passed to the MapView component and handled there
+    if (category === "Saved Locations") {
+      // Show only bookmarked locations
+      console.log("Filtering to show only saved locations");
+    } else {
+      // Filter by location type
+      console.log(`Filtering to show only ${category}`);
+    }
   };
 
   return (
@@ -98,7 +107,7 @@ const Home: React.FC = () => {
         />
 
         <main className="flex-1 relative overflow-hidden">
-          <MapView initialCenter={initialMapCenter} initialZoom={13} />
+          <MapView initialCenter={initialMapCenter} initialZoom={18} />
 
           <BookmarksPanel
             isOpen={showBookmarks}

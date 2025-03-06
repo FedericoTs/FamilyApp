@@ -93,7 +93,13 @@ const Sidebar = ({
                 <button
                   key={category.name}
                   className="flex items-center w-full p-2 rounded-md hover:bg-purple-50 text-gray-600 text-sm"
-                  onClick={() => onCategorySelect(category.name)}
+                  onClick={() => {
+                    onCategorySelect(category.name);
+                    // Close the sidebar on mobile after selection (optional)
+                    if (window.innerWidth < 768 && onClose) {
+                      onClose();
+                    }
+                  }}
                 >
                   {category.icon}
                   <span className="ml-2">{category.name}</span>

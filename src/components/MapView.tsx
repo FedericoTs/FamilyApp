@@ -65,7 +65,7 @@ interface MapViewProps {
 
 const MapView = ({
   initialCenter = { lat: 40.7128, lng: -74.006 }, // New York City coordinates
-  initialZoom = 15,
+  initialZoom = 18,
 }: MapViewProps) => {
   const mapRef = useRef<google.maps.Map | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(
@@ -246,6 +246,9 @@ const MapView = ({
         "library",
         "aquarium",
         "zoo",
+        "cafe",
+        "movie_theater",
+        "bowling_alley",
       ];
 
       if (filters?.locationTypes && filters.locationTypes.length > 0) {
@@ -269,7 +272,7 @@ const MapView = ({
           (type: string) => typeMapping[type] || [],
         );
 
-        // If no valid types are found, use defaults
+        // If no valid types are found, use all available types
         if (placeTypes.length === 0) {
           placeTypes = [
             "park",
@@ -277,12 +280,18 @@ const MapView = ({
             "museum",
             "restaurant",
             "library",
+            "aquarium",
+            "zoo",
+            "cafe",
+            "movie_theater",
+            "bowling_alley",
           ];
         }
       }
 
-      // Calculate radius in meters based on filter distance (in miles)
-      const radiusInMeters = (filters?.distance || 5) * 1609.34;
+      // Calculate radius in meters based on filter distance (in km)
+      // If no filters are applied, use a default radius of 2km
+      const radiusInMeters = (filters?.distance || 2) * 1000;
 
       // Call the Places API
       const response = await searchNearby(
@@ -424,18 +433,16 @@ const MapView = ({
           })}
         </GoogleMap>
       </div>
-
       {/* Location error message */}
       {locationError && (
         <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-10">
-          <Alert variant="destructive" className="max-w-md">
+          <Alert variant="destructive" className="max-w-md bg-white">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Location Error</AlertTitle>
             <AlertDescription>{locationError}</AlertDescription>
           </Alert>
         </div>
       )}
-
       {/* Loading indicator for places */}
       {isLoadingPlaces && (
         <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-10 bg-white py-2 px-4 rounded-full shadow-md flex items-center">
@@ -445,7 +452,6 @@ const MapView = ({
           </span>
         </div>
       )}
-
       {/* Places error message */}
       {placesError && (
         <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-10">
@@ -456,7 +462,6 @@ const MapView = ({
           </Alert>
         </div>
       )}
-
       {/* Map Controls */}
       <div className="absolute top-4 right-4 flex flex-col gap-2">
         <TooltipProvider>
@@ -550,14 +555,12 @@ const MapView = ({
           </Tooltip>
         </TooltipProvider>
       </div>
-
       {/* Filter Panel */}
       {showFilters && (
         <div className="absolute top-4 left-4">
           <FilterPanel isOpen={true} onFilterChange={handleFilterChange} />
         </div>
       )}
-
       {/* Selected Location Card */}
       {selectedLocation && (
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
@@ -575,7 +578,6 @@ const MapView = ({
           />
         </div>
       )}
-
       {/* Bookmarks Panel */}
       <BookmarksPanel
         isOpen={showBookmarks}
@@ -604,15 +606,7 @@ const MapView = ({
           }
         }}
       />
-
       {/* Floating action button to open bookmarks */}
-      <Button
-        className="absolute bottom-4 right-4 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 shadow-lg"
-        size="icon"
-        onClick={() => setShowBookmarks(true)}
-      >
-        <MapPin className="h-5 w-5" />
-      </Button>
     </div>
   );
 };

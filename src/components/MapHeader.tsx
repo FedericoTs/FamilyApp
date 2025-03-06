@@ -104,25 +104,7 @@ const MapHeader = ({
         )}
       </div>
 
-      <div className="absolute right-4">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onBookmarksToggle}
-                className="rounded-full hover:bg-pink-50"
-              >
-                <Bookmark className="h-5 w-5 text-purple-600" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Saved Locations</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
+      {/* Removed Saved Location button */}
     </header>
   );
 };

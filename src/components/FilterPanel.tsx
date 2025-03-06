@@ -28,9 +28,9 @@ interface FilterOptions {
 
 const FilterPanel = ({ isOpen = true, onFilterChange }: FilterPanelProps) => {
   const [filters, setFilters] = useState<FilterOptions>({
-    locationTypes: ["Parks", "Playgrounds"],
-    distance: 5,
-    ageRanges: ["Toddler (0-3)"],
+    locationTypes: [],
+    distance: 1,
+    ageRanges: [],
   });
 
   const [isPanelOpen, setIsPanelOpen] = useState(isOpen);
@@ -98,9 +98,9 @@ const FilterPanel = ({ isOpen = true, onFilterChange }: FilterPanelProps) => {
 
   const resetFilters = () => {
     const defaultFilters = {
-      locationTypes: ["Parks", "Playgrounds"],
-      distance: 5,
-      ageRanges: ["Toddler (0-3)"],
+      locationTypes: [],
+      distance: 1,
+      ageRanges: [],
     };
     setFilters(defaultFilters);
     onFilterChange?.(defaultFilters);
@@ -185,14 +185,14 @@ const FilterPanel = ({ isOpen = true, onFilterChange }: FilterPanelProps) => {
                     <div className="pb-4">
                       <Slider
                         defaultValue={[filters.distance]}
-                        max={20}
-                        step={1}
+                        max={2}
+                        step={0.1}
                         onValueChange={handleDistanceChange}
                       />
                       <div className="flex justify-between mt-2 text-xs text-gray-500">
-                        <span>0 mi</span>
-                        <span>{filters.distance} miles</span>
-                        <span>20 mi</span>
+                        <span>0 km</span>
+                        <span>{filters.distance.toFixed(1)} km</span>
+                        <span>2 km</span>
                       </div>
                     </div>
                   </div>

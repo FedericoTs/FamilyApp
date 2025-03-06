@@ -152,14 +152,14 @@ export const formatDistance = (distanceInKm: number): string => {
   }
 };
 
-// Convert km to miles for display
+// Use this instead of kmToMiles for display
 export const kmToMiles = (km: number): string => {
-  const miles = km * 0.621371;
-  if (miles < 0.1) {
+  if (km < 0.1) {
     return "nearby";
-  } else if (miles < 1) {
-    return `${(miles * 10).toFixed(0) / 10} miles`;
+  } else if (km < 1) {
+    const meters = Math.round(km * 1000);
+    return `${meters} meters`;
   } else {
-    return `${miles.toFixed(1)} miles`;
+    return `${km.toFixed(1)} km`;
   }
 };

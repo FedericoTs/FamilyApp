@@ -1,12 +1,13 @@
-// Google Maps API configuration
+// Google Maps API key
 export const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 
+// Default map options
 export const defaultMapOptions = {
   disableDefaultUI: true,
-  zoomControl: true,
+  zoomControl: false,
   mapTypeControl: false,
   streetViewControl: false,
-  fullscreenControl: true,
+  fullscreenControl: false,
   styles: [
     {
       featureType: "poi.business",
@@ -17,26 +18,20 @@ export const defaultMapOptions = {
       elementType: "labels.text",
       stylers: [{ visibility: "on" }],
     },
-    {
-      featureType: "road",
-      elementType: "labels.icon",
-      stylers: [{ visibility: "off" }],
-    },
   ],
 };
 
-// Get user's current location
+// Get current location using browser geolocation API
 export const getCurrentLocation = (): Promise<GeolocationPosition> => {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error("Geolocation is not supported by your browser"));
-      return;
+    } else {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0,
+      });
     }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => resolve(position),
-      (error) => reject(error),
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 },
-    );
   });
 };
