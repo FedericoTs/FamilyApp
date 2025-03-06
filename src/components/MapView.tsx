@@ -120,6 +120,32 @@ const MapView = ({
     }
   }, [isLoaded]);
 
+  // Listen for category filter events
+  useEffect(() => {
+    const mapViewElement = document.getElementById("map-view");
+    if (!mapViewElement) return;
+
+    const handleFilterByCategory = (event: any) => {
+      const { category } = event.detail;
+      if (userLocation) {
+        // Map category names to location types for filtering
+        const categoryFilters = {
+          locationTypes: [category],
+        };
+        fetchNearbyPlaces(userLocation, categoryFilters);
+      }
+    };
+
+    mapViewElement.addEventListener("filterByCategory", handleFilterByCategory);
+
+    return () => {
+      mapViewElement.removeEventListener(
+        "filterByCategory",
+        handleFilterByCategory,
+      );
+    };
+  }, [userLocation]);
+
   const getUserLocation = useCallback(async () => {
     try {
       setLocationError(null);
@@ -256,7 +282,10 @@ const MapView = ({
         const typeMapping: Record<string, string[]> = {
           Parks: ["park"],
           Playgrounds: ["park"],
-          "Kid-Friendly Restaurants": ["restaurant", "cafe"],
+          "Kid-Friendly Restaurants": ["restaurant"],
+          Restaurants: ["restaurant"],
+          Cafés: ["cafe"],
+          Museums: ["museum"],
           "Children's Museums": ["museum"],
           Libraries: ["library"],
           "Indoor Activities": [
@@ -338,7 +367,7 @@ const MapView = ({
   if (loadError) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-white p-4">
-        <Alert variant="destructive" className="max-w-md">
+        <Alert variant="destructive" className="max-w-md bg-white">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error loading Google Maps</AlertTitle>
           <AlertDescription>
@@ -455,7 +484,7 @@ const MapView = ({
       {/* Places error message */}
       {placesError && (
         <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-10">
-          <Alert variant="destructive" className="max-w-md">
+          <Alert variant="destructive" className="max-w-md bg-white">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Error Finding Places</AlertTitle>
             <AlertDescription>{placesError}</AlertDescription>

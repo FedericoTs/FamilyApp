@@ -30,6 +30,7 @@ interface SidebarProps {
   onCategorySelect?: (category: string) => void;
   username?: string;
   avatarUrl?: string;
+  selectedCategory?: string;
 }
 
 const Sidebar = ({
@@ -38,6 +39,7 @@ const Sidebar = ({
   onCategorySelect = () => {},
   username = "Sarah Johnson",
   avatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
+  selectedCategory = null,
 }: SidebarProps) => {
   const [nearbyOpen, setNearbyOpen] = useState(true);
 
@@ -92,9 +94,11 @@ const Sidebar = ({
               {locationCategories.map((category) => (
                 <button
                   key={category.name}
-                  className="flex items-center w-full p-2 rounded-md hover:bg-purple-50 text-gray-600 text-sm"
+                  className={`flex items-center w-full p-2 rounded-md ${selectedCategory === category.name ? "bg-purple-100 text-purple-700 font-medium" : "hover:bg-purple-50 text-gray-600"} text-sm`}
                   onClick={() => {
+                    // Notify parent component about category selection
                     onCategorySelect(category.name);
+
                     // Close the sidebar on mobile after selection (optional)
                     if (window.innerWidth < 768 && onClose) {
                       onClose();

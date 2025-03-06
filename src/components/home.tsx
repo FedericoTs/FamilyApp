@@ -82,21 +82,33 @@ const Home: React.FC = () => {
     setSelectedCategory(category);
     console.log(`Selected category: ${category}`);
 
-    // Filter the map to show only locations of this category
-    // This will be passed to the MapView component and handled there
-    if (category === "Saved Locations") {
-      // Show only bookmarked locations
-      console.log("Filtering to show only saved locations");
-    } else {
-      // Filter by location type
-      console.log(`Filtering to show only ${category}`);
+    // Create a reference to the MapView component
+    const mapViewRef = document.getElementById("map-view");
+    if (mapViewRef) {
+      // Filter the map to show only locations of this category
+      if (category === "Saved Locations") {
+        // Show only bookmarked locations
+        console.log("Filtering to show only saved locations");
+        // We'll handle this in the MapView component
+      } else {
+        // Filter by location type
+        console.log(`Filtering to show only ${category}`);
+        // Apply the filter
+        const event = new CustomEvent("filterByCategory", {
+          detail: { category: category },
+        });
+        mapViewRef.dispatchEvent(event);
+      }
     }
   };
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">
       {/* Sidebar */}
-      <Sidebar onCategorySelect={handleCategorySelect} />
+      <Sidebar
+        onCategorySelect={handleCategorySelect}
+        selectedCategory={selectedCategory}
+      />
 
       {/* Main Content */}
       <div className="flex flex-col flex-1">
@@ -107,7 +119,9 @@ const Home: React.FC = () => {
         />
 
         <main className="flex-1 relative overflow-hidden">
-          <MapView initialCenter={initialMapCenter} initialZoom={18} />
+          <div id="map-view" className="w-full h-full">
+            <MapView initialCenter={initialMapCenter} initialZoom={14} />
+          </div>
 
           <BookmarksPanel
             isOpen={showBookmarks}
