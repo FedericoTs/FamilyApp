@@ -25,6 +25,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import FilterPanel from "./FilterPanel";
 import LocationCard from "./LocationCard";
+import LocationCarousel from "./LocationCarousel";
 import BookmarksPanel from "./BookmarksPanel";
 import {
   GoogleMap,
@@ -657,23 +658,15 @@ const MapView = ({
           <FilterPanel isOpen={true} onFilterChange={handleFilterChange} />
         </div>
       )}
-      {/* Selected Location Card */}
-      {selectedLocation && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-          <LocationCard
-            name={selectedLocation.name}
-            distance={selectedLocation.distance}
-            rating={selectedLocation.rating}
-            amenities={selectedLocation.amenities}
-            ageRange={selectedLocation.ageRange}
-            imageUrl={selectedLocation.imageUrl}
-            isBookmarked={selectedLocation.isBookmarked}
-            onBookmarkToggle={() => handleBookmarkToggle(selectedLocation)}
-            onGetDirections={() => handleGetDirections(selectedLocation)}
-            onClose={() => setSelectedLocation(null)}
-          />
-        </div>
-      )}
+      {/* Location Carousel */}
+      <LocationCarousel
+        locations={locations}
+        selectedLocation={selectedLocation}
+        onSelectLocation={handleLocationSelect}
+        onBookmarkToggle={handleBookmarkToggle}
+        onGetDirections={handleGetDirections}
+        onCloseCard={() => setSelectedLocation(null)}
+      />
       {/* Bookmarks Panel */}
       <BookmarksPanel
         isOpen={showBookmarks}
