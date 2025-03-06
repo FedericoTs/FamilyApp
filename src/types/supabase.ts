@@ -9,7 +9,112 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      family_members: {
+        Row: {
+          age_range: string | null
+          created_at: string | null
+          id: string
+          name: string
+          profile_id: string | null
+          relationship: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          age_range?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          profile_id?: string | null
+          relationship?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          age_range?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          profile_id?: string | null
+          relationship?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_settings: {
+        Row: {
+          color_palette: string | null
+          created_at: string | null
+          id: string
+          location_sharing: string | null
+          notification_enabled: boolean | null
+          privacy_level: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          color_palette?: string | null
+          created_at?: string | null
+          id: string
+          location_sharing?: string | null
+          notification_enabled?: boolean | null
+          privacy_level?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          color_palette?: string | null
+          created_at?: string | null
+          id?: string
+          location_sharing?: string | null
+          notification_enabled?: boolean | null
+          privacy_level?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_settings_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          main_location: string | null
+          phone_number: string | null
+          updated_at: string | null
+          username: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id: string
+          main_location?: string | null
+          phone_number?: string | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          main_location?: string | null
+          phone_number?: string | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
