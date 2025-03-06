@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Search, Bookmark, MapPin } from "lucide-react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
@@ -8,6 +8,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
+import { useNavigate, useLocation } from "react-router-dom";
+import { googleMapsApiKey } from "@/lib/googleMaps";
 
 interface MapHeaderProps {
   onSearch?: (query: string) => void;
@@ -23,37 +25,182 @@ const MapHeader = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isHomePage = location.pathname === "/";
 
-  // Mock suggestions based on input
-  const handleSearchInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    setSearchQuery(query);
+  // Text search function using Google Places API
+  const performTextSearch = async (
+    query: string,
+    location?: { lat: number; lng: number },
+  ) => {
+    if (!query || !googleMapsApiKey) return;
 
-    if (query.length > 1) {
-      // Mock suggestions - in a real app, these would come from an API
+    setIsLoading(true);
+    try {
+      // For a production app, we would use a server-side API endpoint
+      // to protect our API key. Here's how it would be implemented:
+
+      // 1. Create a server endpoint that proxies requests to Google Places API
+      const apiEndpoint = "/api/places/textsearch";
+
+      // 2. Prepare the request parameters according to Google Places API docs
+      const requestData = {
+        query: query, // The search text (e.g., "parks in New York")
+        key: googleMapsApiKey,
+        language: "en",
+      };
+
+      // 3. Add location bias if available to improve relevance
+      if (location) {
+        requestData["location"] = `${location.lat},${location.lng}`;
+        requestData["radius"] = 10000; // 10km radius
+      }
+
+      // 4. In production, we would make the actual API call:
+      // const response = await fetch(apiEndpoint, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(requestData)
+      // });
+      // const data = await response.json();
+      // Process the results...
+
+      // If not on the home page, navigate there to show results
+      if (!isHomePage) {
+        navigate("/");
+      }
+
+      // For this demo, dispatch a custom event that MapView will listen for
+      const searchEvent = new CustomEvent("map:search", {
+        detail: { query },
+      });
+      window.dispatchEvent(searchEvent);
+
+      // Simulate API call completion
+      setTimeout(() => {
+        onSearch(query);
+        setIsLoading(false);
+      }, 1000);
+    } catch (error) {
+      console.error("Error performing text search:", error);
+      setIsLoading(false);
+    }
+  };
+
+  // Get autocomplete suggestions from Google Places API
+  const getAutocompleteSuggestions = async (query: string) => {
+    if (!query || query.length < 2 || !googleMapsApiKey) return;
+
+    setIsLoading(true);
+    try {
+      // For a production app, we would use a server-side API endpoint
+      // to protect our API key. Here's how it would be implemented:
+
+      // 1. Create a server endpoint that proxies requests to Google Places API
+      const apiEndpoint = "/api/places/autocomplete";
+
+      // 2. Prepare the request parameters according to Google Places API docs
+      const requestData = {
+        input: query, // The user's input text
+        key: googleMapsApiKey,
+        types: "establishment", // Focus on places rather than addresses
+        language: "en", // Use English language
+      };
+
+      // 3. Add location bias if we have the user's location
+      // This would come from a shared state or context in a real implementation
+      // if (userLocation) {
+      //   requestData.location = `${userLocation.lat},${userLocation.lng}`;
+      //   requestData.radius = 50000; // 50km radius (maximum allowed)
+      // }
+
+      // 4. For family-friendly results, we could add specific keywords
+      // For example, we could append "family friendly" to the input
+      // or filter results on the server side
+
+      // 5. In production, we would make the actual API call:
+      // const response = await fetch(apiEndpoint, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(requestData)
+      // });
+      // const data = await response.json();
+      // const suggestions = data.predictions.map(p => p.description);
+
+      // For demo purposes, simulate a network delay
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Generate suggestions based on the query with family-friendly focus
+      // In a real app, these would come from the API response
       const mockSuggestions = [
         `${query} Park`,
         `${query} Playground`,
         `${query} Children's Museum`,
         `${query} Family Restaurant`,
+        `Family-friendly ${query}`,
+        `Kid-friendly ${query} near me`,
       ];
+
       setSuggestions(mockSuggestions);
       setShowSuggestions(true);
+    } catch (error) {
+      console.error("Error fetching autocomplete suggestions:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Store the timeout ID for debouncing
+  const [debounceTimeout, setDebounceTimeout] = useState<NodeJS.Timeout | null>(
+    null,
+  );
+
+  // Handle search input changes with debounce
+  const handleSearchInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+
+    // Clear any existing timeout
+    if (debounceTimeout) {
+      clearTimeout(debounceTimeout);
+    }
+
+    if (query.length > 1) {
+      // Debounce the API call to avoid too many requests
+      // Google's API has rate limits, so this is important
+      const timeoutId = setTimeout(() => {
+        getAutocompleteSuggestions(query);
+      }, 300); // 300ms debounce time
+
+      setDebounceTimeout(timeoutId);
     } else {
       setSuggestions([]);
       setShowSuggestions(false);
     }
   };
 
+  // Clean up the timeout when component unmounts
+  useEffect(() => {
+    return () => {
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+      }
+    };
+  }, [debounceTimeout]);
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSearch(searchQuery);
-    setShowSuggestions(false);
+    if (searchQuery.trim()) {
+      performTextSearch(searchQuery);
+      setShowSuggestions(false);
+    }
   };
 
   const handleSuggestionClick = (suggestion: string) => {
     setSearchQuery(suggestion);
-    onSearch(suggestion);
+    performTextSearch(suggestion);
     setShowSuggestions(false);
   };
 
@@ -78,8 +225,35 @@ const MapHeader = ({
             type="submit"
             size="sm"
             className="absolute right-1 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white rounded-full"
+            disabled={isLoading}
           >
-            Search
+            {isLoading ? (
+              <span className="flex items-center">
+                <svg
+                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Searching
+              </span>
+            ) : (
+              "Search"
+            )}
           </Button>
         </form>
 
@@ -103,8 +277,6 @@ const MapHeader = ({
           </div>
         )}
       </div>
-
-      {/* Removed Saved Location button */}
     </header>
   );
 };

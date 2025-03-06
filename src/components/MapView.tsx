@@ -64,6 +64,85 @@ interface MapViewProps {
   initialZoom?: number;
 }
 
+// Helper function to generate mock search results
+const generateMockSearchResults = (
+  query: string,
+  userLocation: { lat: number; lng: number },
+) => {
+  // Create 5-8 mock locations based on the search query
+  const count = Math.floor(Math.random() * 4) + 5;
+  const results = [];
+
+  const types = [
+    "Restaurant",
+    "Café",
+    "Park",
+    "Museum",
+    "Library",
+    "Playground",
+    "Shopping Mall",
+    "Attraction",
+    "Store",
+  ];
+
+  // Generate random coordinates near the user location
+  for (let i = 0; i < count; i++) {
+    // Random offset between -0.01 and 0.01 degrees (roughly 1km)
+    const latOffset = (Math.random() - 0.5) * 0.02;
+    const lngOffset = (Math.random() - 0.5) * 0.02;
+
+    const position = {
+      lat: userLocation.lat + latOffset,
+      lng: userLocation.lng + lngOffset,
+    };
+
+    // Calculate actual distance
+    const distanceInKm = calculateDistance(
+      userLocation.lat,
+      userLocation.lng,
+      position.lat,
+      position.lng,
+    );
+
+    // Determine a type that might match the query
+    let type = types[Math.floor(Math.random() * types.length)];
+    if (
+      query.toLowerCase().includes("restaurant") ||
+      query.toLowerCase().includes("food")
+    ) {
+      type = "Restaurant";
+    } else if (
+      query.toLowerCase().includes("park") ||
+      query.toLowerCase().includes("playground")
+    ) {
+      type = "Park";
+    } else if (query.toLowerCase().includes("museum")) {
+      type = "Museum";
+    } else if (
+      query.toLowerCase().includes("cafe") ||
+      query.toLowerCase().includes("coffee")
+    ) {
+      type = "Café";
+    }
+
+    results.push({
+      id: `search-${i}-${Date.now()}`,
+      name: `${query} ${type} ${i + 1}`,
+      type: type,
+      position: position,
+      distance: kmToMiles(distanceInKm),
+      rating: (3 + Math.random() * 2).toFixed(1),
+      amenities: ["Family-Friendly", "Parking", "Accessible"],
+      ageRange: "All ages",
+      address: `${Math.floor(Math.random() * 200) + 1} Main St, New York, NY`,
+      imageUrl: `https://images.unsplash.com/photo-${1570000000000 + i * 1000}?w=600&q=80`,
+      isBookmarked: false,
+    });
+  }
+
+  return results;
+};
+
 const MapView = ({
   initialCenter = { lat: 40.7128, lng: -74.006 }, // New York City coordinates
   initialZoom = 18,
@@ -113,6 +192,28 @@ const MapView = ({
       fetchNearbyPlaces(userLocation);
     }
   }, [userLocation, isLoaded]);
+
+  // Listen for search events from MapHeader
+  useEffect(() => {
+    const handleSearchEvent = (event: CustomEvent) => {
+      const { query } = event.detail;
+      if (query && userLocation) {
+        fetchNearbyPlaces(userLocation, { searchQuery: query });
+      }
+    };
+
+    window.addEventListener(
+      "map:search" as any,
+      handleSearchEvent as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "map:search" as any,
+        handleSearchEvent as EventListener,
+      );
+    };
+  }, [userLocation]);
 
   // Get user's current location
   useEffect(() => {
@@ -255,6 +356,7 @@ const MapView = ({
     location: { lat: number; lng: number },
     filters?: any,
   ) => {
+    setIsLoadingPlaces(true);
     if (!googleMapsApiKey) {
       setPlacesError("Google Maps API key is missing");
       return;
@@ -264,7 +366,22 @@ const MapView = ({
     setPlacesError(null);
 
     try {
-      // Determine place types based on filters
+      // If there's a search query, use it directly in the text search
+      if (filters?.searchQuery) {
+        console.log(`Performing text search for: ${filters.searchQuery}`);
+
+        // In a real app, this would call the Places API text search endpoint
+        // For demo purposes, we'll simulate results by adding the query to the mock data
+        const mockSearchResults = generateMockSearchResults(
+          filters.searchQuery,
+          location,
+        );
+        setLocations(mockSearchResults);
+        setIsLoadingPlaces(false);
+        return;
+      }
+
+      // For category filters, determine place types
       let placeTypes = [
         "park",
         "amusement_park",
