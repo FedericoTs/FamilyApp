@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { useRoutes, Routes, Route, Navigate } from "react-router-dom";
 import Home from "./components/home";
 import routes from "tempo-routes";
@@ -6,6 +6,7 @@ import Sidebar from "./components/Sidebar";
 import MapHeader from "./components/MapHeader";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { useTheme } from "./lib/themeProvider";
 
 // Lazy load pages for better performance
 const Discover = lazy(() => import("./pages/Discover"));
@@ -17,6 +18,19 @@ const Landing = lazy(() => import("./pages/Landing"));
 const Login = lazy(() => import("./pages/Login"));
 
 function App() {
+  const { theme } = useTheme();
+
+  // Apply theme class to body for global styling
+  useEffect(() => {
+    // Remove all theme classes
+    document.body.classList.remove("dark", "high-contrast");
+
+    // Add the current theme class
+    if (theme === "dark" || theme === "high-contrast") {
+      document.body.classList.add(theme);
+    }
+  }, [theme]);
+
   return (
     <AuthProvider>
       <Suspense

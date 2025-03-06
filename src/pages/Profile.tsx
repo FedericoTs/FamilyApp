@@ -1,61 +1,138 @@
-import React from "react";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { MapPin, Heart, Settings, Bell, Shield, Users } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, Loader2 } from "lucide-react";
+import { useProfile } from "@/hooks/useProfile";
+import { Toaster } from "@/components/ui/toaster";
+
+// Profile components
+import ProfileHeader from "@/components/profile/ProfileHeader";
+import EditProfileForm from "@/components/profile/EditProfileForm";
+import SavedLocations from "@/components/profile/SavedLocations";
+import FamilyMembersList from "@/components/profile/FamilyMembersList";
+import ProfileSettings from "@/components/profile/ProfileSettings";
+import AccountSettings from "@/components/profile/AccountSettings";
 
 const Profile = () => {
+  const {
+    profile,
+    settings,
+    familyMembers,
+    loading,
+    error,
+    updateProfile,
+    updateSettings,
+    addFamilyMember,
+    updateFamilyMember,
+    deleteFamilyMember,
+  } = useProfile();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState("saved");
+
+  const handleProfileUpdate = async (updates) => {
+    const result = await updateProfile(updates);
+    if (!result.error) {
+      setIsEditing(false);
+    }
+    return result;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-purple-600 mx-auto" />
+          <p className="mt-4 text-gray-600">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Error loading profile: {error}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (!profile || !settings) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Profile not found. Please try again later.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Format date for display
+  const memberSince = new Date(profile.created_at).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+  });
+
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto p-6 dark:bg-gray-900 min-h-screen">
       <div className="flex flex-col md:flex-row gap-6">
         <div className="md:w-1/3">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle>Profile</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center">
-                <Avatar className="h-24 w-24 mb-4">
-                  <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah" />
-                  <AvatarFallback>SJ</AvatarFallback>
-                </Avatar>
-                <h2 className="text-xl font-bold">Sarah Johnson</h2>
-                <p className="text-sm text-gray-500 flex items-center mt-1">
-                  <MapPin className="h-3 w-3 mr-1" /> New York, NY
-                </p>
-                <Button className="mt-4 w-full bg-gradient-to-r from-pink-500 to-purple-600">
-                  Edit Profile
-                </Button>
-              </div>
+          {isEditing ? (
+            <EditProfileForm
+              profile={profile}
+              onSave={handleProfileUpdate}
+              onCancel={() => setIsEditing(false)}
+            />
+          ) : (
+            <div className="space-y-6">
+              <ProfileHeader
+                profile={profile}
+                onEditClick={() => setIsEditing(true)}
+              />
 
-              <Separator className="my-4" />
-
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Email</span>
-                  <span className="text-sm text-gray-500">
-                    sarah.j@example.com
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Phone</span>
-                  <span className="text-sm text-gray-500">
-                    +1 (555) 123-4567
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Member since</span>
-                  <span className="text-sm text-gray-500">March 2023</span>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium dark:text-gray-200">
+                      Email
+                    </span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {profile.email}
+                    </span>
+                  </div>
+                  {profile.phone_number && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium dark:text-gray-200">
+                        Phone
+                      </span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {profile.phone_number}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium dark:text-gray-200">
+                      Member since
+                    </span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {memberSince}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          )}
         </div>
 
         <div className="md:w-2/3">
-          <Tabs defaultValue="saved">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="saved">Saved Places</TabsTrigger>
               <TabsTrigger value="family">My Family</TabsTrigger>
@@ -64,119 +141,29 @@ const Profile = () => {
             </TabsList>
 
             <TabsContent value="saved" className="mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Heart className="h-5 w-5 text-pink-500 mr-2" />
-                    Saved Places
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8 text-gray-500">
-                    <MapPin className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                    <p>You haven't saved any places yet.</p>
-                    <p className="text-sm mt-2">
-                      Bookmark locations you love to find them easily later.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              <SavedLocations />
             </TabsContent>
 
             <TabsContent value="family" className="mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Users className="h-5 w-5 text-blue-500 mr-2" />
-                    My Family
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8 text-gray-500">
-                    <Users className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                    <p>No family members added yet.</p>
-                    <p className="text-sm mt-2">
-                      Add family members to share locations and plan activities
-                      together.
-                    </p>
-                    <Button className="mt-4 bg-gradient-to-r from-pink-500 to-purple-600">
-                      Add Family Member
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <FamilyMembersList
+                familyMembers={familyMembers}
+                onAdd={addFamilyMember}
+                onUpdate={updateFamilyMember}
+                onDelete={deleteFamilyMember}
+              />
             </TabsContent>
 
             <TabsContent value="preferences" className="mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Settings className="h-5 w-5 text-gray-500 mr-2" />
-                    Preferences
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="text-sm font-medium mb-2">
-                        Notification Settings
-                      </h3>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <Bell className="h-4 w-4 text-gray-500 mr-2" />
-                          <span className="text-sm">Push Notifications</span>
-                        </div>
-                        <div className="text-sm text-gray-500">On</div>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div>
-                      <h3 className="text-sm font-medium mb-2">
-                        Privacy Settings
-                      </h3>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <Shield className="h-4 w-4 text-gray-500 mr-2" />
-                          <span className="text-sm">Location Sharing</span>
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          Friends Only
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <ProfileSettings settings={settings} onSave={updateSettings} />
             </TabsContent>
 
             <TabsContent value="account" className="mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Account Settings</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <Button variant="outline" className="w-full justify-start">
-                      Change Password
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start">
-                      Connected Accounts
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
-                    >
-                      Delete Account
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <AccountSettings />
             </TabsContent>
           </Tabs>
         </div>
       </div>
+      <Toaster />
     </div>
   );
 };
