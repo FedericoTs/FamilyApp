@@ -275,24 +275,63 @@ const MapView = ({
         "cafe",
         "movie_theater",
         "bowling_alley",
+        "art_gallery",
+        "shopping_mall",
+        "spa",
+        "gym",
+        "tourist_attraction",
+        "meal_delivery",
+        "meal_takeaway",
+        "bakery",
+        "store",
+        "shoe_store",
+        "convenience_store",
+        "clothing_store",
+        "department_store",
+        "pharmacy",
+        "supermarket",
       ];
 
       if (filters?.locationTypes && filters.locationTypes.length > 0) {
         // Map UI filter categories to Google Places API types
         const typeMapping: Record<string, string[]> = {
-          Parks: ["park"],
-          Playgrounds: ["park"],
-          "Kid-Friendly Restaurants": ["restaurant"],
-          Restaurants: ["restaurant"],
-          Cafés: ["cafe"],
-          Museums: ["museum"],
-          "Children's Museums": ["museum"],
+          Parks: ["park", "zoo"],
+          Playgrounds: ["park", "zoo"],
+          "Kid-Friendly Restaurants": [
+            "restaurant",
+            "meal_delivery",
+            "meal_takeaway",
+            "bakery",
+          ],
+          Restaurants: [
+            "restaurant",
+            "meal_delivery",
+            "meal_takeaway",
+            "bakery",
+          ],
+          Cafés: ["cafe", "bakery"],
+          Museums: ["museum", "art_gallery"],
+          "Children's Museums": ["museum", "art_gallery"],
           Libraries: ["library"],
-          "Indoor Activities": [
-            "amusement_park",
-            "aquarium",
+          Indoor: [
             "movie_theater",
             "bowling_alley",
+            "aquarium",
+            "museum",
+            "shopping_mall",
+            "spa",
+            "gym",
+            "zoo",
+          ],
+          "Indoor Activities": [
+            "movie_theater",
+            "bowling_alley",
+            "aquarium",
+            "museum",
+            "shopping_mall",
+            "spa",
+            "gym",
+            "zoo",
           ],
         };
 
@@ -314,6 +353,10 @@ const MapView = ({
             "cafe",
             "movie_theater",
             "bowling_alley",
+            "art_gallery",
+            "shopping_mall",
+            "spa",
+            "gym",
           ];
         }
       }
@@ -434,6 +477,11 @@ const MapView = ({
                 "Movie Theater": { color: "#f97316" },
                 Attraction: { color: "#f97316" },
                 Playground: { color: "#10b981" },
+                "Art Gallery": { color: "#8b5cf6" },
+                "Shopping Mall": { color: "#f97316" },
+                Spa: { color: "#0ea5e9" },
+                Gym: { color: "#84cc16" },
+                "Bowling Alley": { color: "#f97316" },
               };
 
               // Default to Park if type not found

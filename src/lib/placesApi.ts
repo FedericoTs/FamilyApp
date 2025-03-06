@@ -75,6 +75,11 @@ export const transformPlacesResponse = (placesResponse: any) => {
         cafe: "Café",
         movie_theater: "Movie Theater",
         tourist_attraction: "Attraction",
+        art_gallery: "Art Gallery",
+        shopping_mall: "Shopping Mall",
+        spa: "Spa",
+        gym: "Gym",
+        bowling_alley: "Bowling Alley",
       };
 
       // Find the first type that has a mapping

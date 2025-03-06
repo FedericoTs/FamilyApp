@@ -14,6 +14,7 @@ import {
   Palmtree,
   UtensilsCrossed,
   TreePine,
+  Home,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
@@ -48,7 +49,7 @@ const Sidebar = ({
       name: "Saved Locations",
       icon: <MapPin className="h-4 w-4 text-pink-500" />,
     },
-    { name: "Parks", icon: <TreePine className="h-4 w-4 text-green-600" /> },
+    { name: "Indoor", icon: <Home className="h-4 w-4 text-blue-400" /> },
     {
       name: "Playgrounds",
       icon: <Palmtree className="h-4 w-4 text-green-500" />,
