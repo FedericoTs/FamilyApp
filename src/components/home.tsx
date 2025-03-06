@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import MapHeader from "./MapHeader";
 import MapView from "./MapView";
 import BookmarksPanel from "./BookmarksPanel";
+import Sidebar from "./Sidebar";
 import { getCurrentLocation } from "@/lib/googleMaps";
 
 interface Location {
@@ -32,6 +33,7 @@ const Home: React.FC = () => {
     lat: number;
     lng: number;
   }>({ lat: 40.7128, lng: -74.006 }); // Default to NYC
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // Locations state - will be populated by MapView component
   const [locations, setLocations] = useState<Location[]>([]);
@@ -76,50 +78,62 @@ const Home: React.FC = () => {
     setSelectedLocation(location);
   };
 
+  const handleCategorySelect = (category: string) => {
+    setSelectedCategory(category);
+    console.log(`Selected category: ${category}`);
+    // In a real app, this would filter the map to show only locations of this category
+  };
+
   return (
-    <div className="flex flex-col h-screen bg-white">
-      <MapHeader
-        onSearch={handleSearch}
-        onBookmarksToggle={handleBookmarksToggle}
-        onLogoClick={handleLogoClick}
-      />
+    <div className="flex h-screen bg-white overflow-hidden">
+      {/* Sidebar */}
+      <Sidebar onCategorySelect={handleCategorySelect} />
 
-      <main className="flex-1 relative overflow-hidden">
-        <MapView initialCenter={initialMapCenter} initialZoom={13} />
-
-        <BookmarksPanel
-          isOpen={showBookmarks}
-          onClose={() => setShowBookmarks(false)}
-          onSelectLocation={(location) => {
-            const fullLocation = locations.find(
-              (loc) => loc.id === location.id,
-            );
-            if (fullLocation) {
-              handleLocationSelect(fullLocation);
-              setShowBookmarks(false);
-            }
-          }}
-          bookmarkedLocations={locations
-            .filter((loc) => loc.isBookmarked)
-            .map((loc) => ({
-              id: loc.id,
-              name: loc.name,
-              type: loc.type,
-              distance: loc.distance,
-              rating: loc.rating,
-              address: loc.address,
-              imageUrl: loc.imageUrl,
-            }))}
-          onRemoveBookmark={(locationId) => {
-            // In a real app, this would update the bookmark status in your database
-            console.log(`Removing bookmark for location: ${locationId}`);
-          }}
+      {/* Main Content */}
+      <div className="flex flex-col flex-1">
+        <MapHeader
+          onSearch={handleSearch}
+          onBookmarksToggle={handleBookmarksToggle}
+          onLogoClick={handleLogoClick}
         />
-      </main>
 
-      <footer className="bg-gradient-to-r from-pink-500 to-purple-600 text-white text-center py-2 text-xs">
-        <p>© 2025 FamilyApp - Find family-friendly places near you</p>
-      </footer>
+        <main className="flex-1 relative overflow-hidden">
+          <MapView initialCenter={initialMapCenter} initialZoom={13} />
+
+          <BookmarksPanel
+            isOpen={showBookmarks}
+            onClose={() => setShowBookmarks(false)}
+            onSelectLocation={(location) => {
+              const fullLocation = locations.find(
+                (loc) => loc.id === location.id,
+              );
+              if (fullLocation) {
+                handleLocationSelect(fullLocation);
+                setShowBookmarks(false);
+              }
+            }}
+            bookmarkedLocations={locations
+              .filter((loc) => loc.isBookmarked)
+              .map((loc) => ({
+                id: loc.id,
+                name: loc.name,
+                type: loc.type,
+                distance: loc.distance,
+                rating: loc.rating,
+                address: loc.address,
+                imageUrl: loc.imageUrl,
+              }))}
+            onRemoveBookmark={(locationId) => {
+              // In a real app, this would update the bookmark status in your database
+              console.log(`Removing bookmark for location: ${locationId}`);
+            }}
+          />
+        </main>
+
+        <footer className="bg-gradient-to-r from-pink-500 to-purple-600 text-white text-center py-2 text-xs">
+          <p>© 2025 FamilyApp - Find family-friendly places near you</p>
+        </footer>
+      </div>
     </div>
   );
 };

@@ -9,6 +9,11 @@ import {
   Search,
   Loader2,
   X,
+  Coffee,
+  Library,
+  TreePine,
+  Palmtree,
+  UtensilsCrossed,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
@@ -60,7 +65,7 @@ interface MapViewProps {
 
 const MapView = ({
   initialCenter = { lat: 40.7128, lng: -74.006 }, // New York City coordinates
-  initialZoom = 20,
+  initialZoom = 15,
 }: MapViewProps) => {
   const mapRef = useRef<google.maps.Map | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(
@@ -376,21 +381,47 @@ const MapView = ({
           )}
 
           {/* Location markers */}
-          {locations.map((location) => (
-            <Marker
-              key={location.id}
-              position={location.position}
-              onClick={() => handleMarkerClick(location.id)}
-              icon={{
-                url: `data:image/svg+xml;utf-8,${encodeURIComponent(
-                  `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 24 24" fill="none" stroke="${location.isBookmarked ? "#ec4899" : "#9333ea"}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3" fill="${location.isBookmarked ? "#ec4899" : "#9333ea"}" stroke="white"/></svg>`,
-                )}`,
-                anchor: new google.maps.Point(16, 40),
-              }}
-            >
-              {/* InfoWindow removed - now using the card at the bottom */}
-            </Marker>
-          ))}
+          {locations.map((location) => {
+            // Determine color and icon based on location type
+            const getLocationTypeConfig = (type: string) => {
+              const typeConfig = {
+                Park: { color: "#10b981" },
+                "Amusement Park": { color: "#f97316" },
+                Museum: { color: "#8b5cf6" },
+                Restaurant: { color: "#ef4444" },
+                Café: { color: "#ef4444" },
+                Library: { color: "#0ea5e9" },
+                Aquarium: { color: "#0ea5e9" },
+                Zoo: { color: "#84cc16" },
+                "Movie Theater": { color: "#f97316" },
+                Attraction: { color: "#f97316" },
+                Playground: { color: "#10b981" },
+              };
+
+              // Default to Park if type not found
+              return typeConfig[type] || typeConfig["Park"];
+            };
+
+            const typeConfig = getLocationTypeConfig(location.type);
+            const color = location.isBookmarked ? "#ec4899" : typeConfig.color;
+
+            return (
+              <Marker
+                key={location.id}
+                position={location.position}
+                onClick={() => handleMarkerClick(location.id)}
+                icon={{
+                  url: `data:image/svg+xml;utf-8,${encodeURIComponent(
+                    `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="${color}" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" fill="${color}" stroke="white" stroke-width="1"/></svg>`,
+                  )}`,
+                  anchor: new google.maps.Point(15, 15),
+                  scaledSize: new google.maps.Size(30, 30),
+                }}
+              >
+                {/* InfoWindow removed - now using the card at the bottom */}
+              </Marker>
+            );
+          })}
         </GoogleMap>
       </div>
 

@@ -58,17 +58,8 @@ const MapHeader = ({
   };
 
   return (
-    <header className="bg-white shadow-md h-20 px-4 md:px-6 flex items-center justify-between sticky top-0 z-10">
-      <div className="flex items-center">
-        <div className="flex items-center cursor-pointer" onClick={onLogoClick}>
-          <MapPin className="h-6 w-6 text-pink-500" />
-          <h1 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent ml-2">
-            FamilyApp
-          </h1>
-        </div>
-      </div>
-
-      <div className="relative max-w-md w-full mx-4">
+    <header className="bg-white shadow-md h-20 px-4 md:px-6 flex items-center justify-center sticky top-0 z-10">
+      <div className="relative max-w-md w-full">
         <form onSubmit={handleSearchSubmit} className="relative">
           <Input
             type="text"
@@ -113,7 +104,7 @@ const MapHeader = ({
         )}
       </div>
 
-      <div>
+      <div className="absolute right-4">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
