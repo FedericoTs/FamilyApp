@@ -1,9 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/use-toast";
+import { Toaster } from "@/components/ui/toaster";
+import { useNotifications, Notification } from "@/hooks/useNotifications";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
+import { format, parseISO } from "date-fns";
 import {
   Bell,
   Calendar,
@@ -12,69 +18,32 @@ import {
   Check,
   X,
   Settings,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  date: string;
-  type: "reminder" | "alert" | "info";
-  category: "calendar" | "budget" | "family" | "system";
-  read: boolean;
+interface NotificationSettings {
+  enableNotifications: boolean;
+  calendarReminders: boolean;
+  budgetAlerts: boolean;
+  familyUpdates: boolean;
+  systemNotifications: boolean;
 }
 
 const FamilyNotifications: React.FC = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      title: "School Early Dismissal",
-      message: "Don't forget - early dismissal this Friday at 1:30 PM",
-      date: "Today",
-      type: "reminder",
-      category: "calendar",
-      read: false,
-    },
-    {
-      id: "2",
-      title: "Emma's Birthday",
-      message: "Emma's birthday is in 2 weeks. Start planning!",
-      date: "Yesterday",
-      type: "reminder",
-      category: "family",
-      read: false,
-    },
-    {
-      id: "3",
-      title: "Budget Alert",
-      message: "You've used 75% of your monthly dining budget",
-      date: "2 days ago",
-      type: "alert",
-      category: "budget",
-      read: true,
-    },
-    {
-      id: "4",
-      title: "Dentist Appointment",
-      message:
-        "Reminder: Dentist appointment for the kids next Monday at 10:00 AM",
-      date: "3 days ago",
-      type: "reminder",
-      category: "calendar",
-      read: true,
-    },
-    {
-      id: "5",
-      title: "Family Photo Album",
-      message: "New photos added to the family album by Mom",
-      date: "1 week ago",
-      type: "info",
-      category: "family",
-      read: true,
-    },
-  ]);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const {
+    notifications,
+    loading,
+    error,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    deleteAllNotifications,
+  } = useNotifications();
 
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<NotificationSettings>({
     enableNotifications: true,
     calendarReminders: true,
     budgetAlerts: true,
@@ -82,38 +51,100 @@ const FamilyNotifications: React.FC = () => {
     systemNotifications: true,
   });
 
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
   const [categoryFilter, setCategoryFilter] = useState<
     "all" | "calendar" | "budget" | "family" | "system"
   >("all");
 
-  const handleMarkAsRead = (id: string) => {
-    setNotifications(
-      notifications.map((notification) =>
-        notification.id === id ? { ...notification, read: true } : notification,
-      ),
-    );
+  // Load notification settings from Supabase
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("profile_settings")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+
+        if (error) throw error;
+
+        if (data) {
+          // Map database settings to our local settings format
+          setSettings({
+            enableNotifications: data.notification_enabled ?? true,
+            calendarReminders: true,
+            budgetAlerts: true,
+            familyUpdates: true,
+            systemNotifications: true,
+          });
+        }
+      } catch (err) {
+        console.error("Error loading notification settings:", err);
+        // Use default settings if we can't load from database
+      }
+    };
+
+    fetchSettings();
+  }, [user]);
+
+  const handleMarkAsRead = async (id: string) => {
+    await markAsRead(id);
   };
 
-  const handleMarkAllAsRead = () => {
-    setNotifications(
-      notifications.map((notification) => ({ ...notification, read: true })),
-    );
+  const handleMarkAllAsRead = async () => {
+    await markAllAsRead();
   };
 
-  const handleDeleteNotification = (id: string) => {
-    setNotifications(
-      notifications.filter((notification) => notification.id !== id),
-    );
+  const handleDeleteNotification = async (id: string) => {
+    await deleteNotification(id);
   };
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
     if (confirm("Are you sure you want to clear all notifications?")) {
-      setNotifications([]);
+      await deleteAllNotifications();
     }
   };
 
-  const handleToggleSetting = (setting: keyof typeof settings) => {
+  // Save notification settings to Supabase
+  const saveNotificationSettings = async () => {
+    if (!user) return;
+
+    setSavingSettings(true);
+    setSettingsError(null);
+
+    try {
+      const { error } = await supabase
+        .from("profile_settings")
+        .update({
+          notification_enabled: settings.enableNotifications,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Settings saved",
+        description: "Your notification preferences have been updated.",
+      });
+    } catch (err: any) {
+      console.error("Error saving notification settings:", err);
+      setSettingsError(err.message);
+      toast({
+        variant: "destructive",
+        title: "Error saving settings",
+        description: "Failed to save your notification preferences.",
+      });
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleToggleSetting = (setting: keyof NotificationSettings) => {
     setSettings({
       ...settings,
       [setting]: !settings[setting],
@@ -148,8 +179,22 @@ const FamilyNotifications: React.FC = () => {
     }
   };
 
-  // Filter notifications based on read status and category
+  // Filter notifications based on read status, category, and settings preferences
   const filteredNotifications = notifications.filter((notification) => {
+    // First apply settings filters
+    if (!settings.enableNotifications) return false;
+
+    // Filter by notification category based on settings
+    if (notification.category === "calendar" && !settings.calendarReminders)
+      return false;
+    if (notification.category === "budget" && !settings.budgetAlerts)
+      return false;
+    if (notification.category === "family" && !settings.familyUpdates)
+      return false;
+    if (notification.category === "system" && !settings.systemNotifications)
+      return false;
+
+    // Then apply UI filters
     if (
       filter !== "all" &&
       (filter === "read" ? !notification.read : notification.read)
@@ -166,6 +211,7 @@ const FamilyNotifications: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <Toaster />
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h2 className="text-2xl font-bold text-purple-700 flex items-center">
           <Bell className="mr-2 h-6 w-6" />
@@ -231,8 +277,23 @@ const FamilyNotifications: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent>
-              {filteredNotifications.length === 0 ? (
-                <div className="text-center py-12">
+              {loading ? (
+                <div className="text-center py-8">
+                  <Loader2 className="mx-auto h-12 w-12 text-gray-300 animate-spin" />
+                  <h3 className="mt-2 text-lg font-medium text-gray-900">
+                    Loading notifications...
+                  </h3>
+                </div>
+              ) : error ? (
+                <div className="text-center py-8">
+                  <AlertCircle className="mx-auto h-12 w-12 text-red-300" />
+                  <h3 className="mt-2 text-lg font-medium text-gray-900">
+                    Error loading notifications
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-500">{error}</p>
+                </div>
+              ) : filteredNotifications.length === 0 ? (
+                <div className="text-center py-8">
                   <Bell className="mx-auto h-12 w-12 text-gray-300" />
                   <h3 className="mt-2 text-lg font-medium text-gray-900">
                     No notifications
@@ -273,7 +334,12 @@ const FamilyNotifications: React.FC = () => {
                               {notification.message}
                             </p>
                             <div className="flex items-center mt-2 text-xs text-gray-500">
-                              <span>{notification.date}</span>
+                              <span>
+                                {format(
+                                  parseISO(notification.created_at),
+                                  "MMM d, h:mm a",
+                                )}
+                              </span>
                               <span className="mx-2">•</span>
                               <span className="capitalize">
                                 {notification.category}
@@ -400,8 +466,24 @@ const FamilyNotifications: React.FC = () => {
                 />
               </div>
 
-              <Button className="w-full mt-4 bg-gradient-to-r from-pink-500 to-purple-600">
-                Save Preferences
+              {settingsError && (
+                <div className="text-red-500 text-sm mt-4">
+                  Error: {settingsError}
+                </div>
+              )}
+              <Button
+                className="w-full mt-4 bg-gradient-to-r from-pink-500 to-purple-600"
+                onClick={saveNotificationSettings}
+                disabled={savingSettings}
+              >
+                {savingSettings ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Preferences"
+                )}
               </Button>
             </CardContent>
           </Card>
