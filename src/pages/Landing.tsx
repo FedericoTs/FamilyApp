@@ -191,7 +191,7 @@ const Landing = () => {
               <div className="absolute -top-12 -right-12 w-40 h-40 bg-yellow-200 rounded-full opacity-50"></div>
               <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-purple-200 rounded-full opacity-50"></div>
               <img
-                src="https://images.unsplash.com/photo-1597116635010-8b65f0dce76c?w=800&q=80"
+                src="https://unsplash.com/it/foto/3-women-and-2-men-sitting-on-green-grass-field-during-daytime-4_mJ1TbMK8A"
                 alt="Family enjoying a park"
                 className="relative z-10 rounded-2xl shadow-xl w-full h-auto object-cover"
               />

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,8 +27,16 @@ import {
   Pencil,
   Trash2,
   Users,
+  Calendar,
 } from "lucide-react";
 import { FamilyMember } from "@/types/profile";
+import { format } from "date-fns";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface FamilyMembersListProps {
   familyMembers: FamilyMember[];
@@ -45,6 +53,67 @@ interface FamilyMembersListProps {
   onDelete: (id: string) => Promise<{ error: string | null }>;
 }
 
+// Function to calculate age range based on birthdate
+const calculateAgeRange = (birthdate: string | null): string => {
+  if (!birthdate) return "";
+
+  const today = new Date();
+  const birth = new Date(birthdate);
+
+  // Calculate age in years
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+
+  // Adjust age if birthday hasn't occurred yet this year
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+
+  // Determine age range category
+  if (age < 1) return "infant";
+  if (age >= 1 && age <= 3) return "toddler";
+  if (age >= 3 && age <= 5) return "preschool";
+  if (age >= 6 && age <= 12) return "child";
+  if (age >= 13 && age <= 17) return "teen";
+  return "adult";
+};
+
+// Function to get display text for age range
+const getAgeRangeLabel = (ageRange: string): string => {
+  const ageRangeMap: Record<string, string> = {
+    infant: "Infant (0-1)",
+    toddler: "Toddler (1-3)",
+    preschool: "Preschool (3-5)",
+    child: "Child (6-12)",
+    teen: "Teen (13-17)",
+    adult: "Adult (18+)",
+  };
+
+  return ageRangeMap[ageRange] || "";
+};
+
+// Function to calculate age in years and months
+const calculateAge = (birthdate: string | null): string => {
+  if (!birthdate) return "";
+
+  const today = new Date();
+  const birth = new Date(birthdate);
+
+  let years = today.getFullYear() - birth.getFullYear();
+  let months = today.getMonth() - birth.getMonth();
+
+  if (months < 0 || (months === 0 && today.getDate() < birth.getDate())) {
+    years--;
+    months += 12;
+  }
+
+  if (years === 0) {
+    return `${months} month${months !== 1 ? "s" : ""}`;
+  } else {
+    return `${years} year${years !== 1 ? "s" : ""}, ${months} month${months !== 1 ? "s" : ""}`;
+  }
+};
+
 const FamilyMembersList: React.FC<FamilyMembersListProps> = ({
   familyMembers,
   onAdd,
@@ -58,8 +127,12 @@ const FamilyMembersList: React.FC<FamilyMembersListProps> = ({
   const [newMember, setNewMember] = useState({
     name: "",
     relationship: "",
-    age_range: "",
+    birthdate: "",
   });
+
+  // Refs to store selected years
+  const newMemberYearRef = useRef<number>(new Date().getFullYear());
+  const editingMemberYearRef = useRef<number>(new Date().getFullYear());
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -87,7 +160,7 @@ const FamilyMembersList: React.FC<FamilyMembersListProps> = ({
       if (result.error) {
         setError(result.error);
       } else {
-        setNewMember({ name: "", relationship: "", age_range: "" });
+        setNewMember({ name: "", relationship: "", birthdate: "" });
         setIsAddDialogOpen(false);
       }
     } catch (err: any) {
@@ -136,15 +209,45 @@ const FamilyMembersList: React.FC<FamilyMembersListProps> = ({
     }
   };
 
-  const ageRangeOptions = [
-    { value: "infant", label: "Infant (0-1)" },
-    { value: "toddler", label: "Toddler (1-3)" },
-    { value: "preschool", label: "Preschool (3-5)" },
-    { value: "child", label: "Child (6-12)" },
-    { value: "teen", label: "Teen (13-17)" },
-    { value: "adult", label: "Adult (18+)" },
-  ];
+  // Handle year change for new member
+  const handleNewMemberYearChange = (year: string) => {
+    const yearValue = parseInt(year);
+    newMemberYearRef.current = yearValue;
 
+    const currentDate = newMember.birthdate
+      ? new Date(newMember.birthdate)
+      : new Date();
+
+    currentDate.setFullYear(yearValue);
+
+    // Force re-render of calendar with new year
+    setNewMember((prev) => ({
+      ...prev,
+      birthdate: currentDate.toISOString(),
+    }));
+  };
+
+  // Handle year change for editing member
+  const handleEditingMemberYearChange = (year: string) => {
+    if (!editingMember) return;
+
+    const yearValue = parseInt(year);
+    editingMemberYearRef.current = yearValue;
+
+    const currentDate = editingMember.birthdate
+      ? new Date(editingMember.birthdate)
+      : new Date();
+
+    currentDate.setFullYear(yearValue);
+
+    // Force re-render of calendar with new year
+    setEditingMember({
+      ...editingMember,
+      birthdate: currentDate.toISOString(),
+    });
+  };
+
+  // Relationship options remain the same
   const relationshipOptions = [
     { value: "spouse", label: "Spouse/Partner" },
     { value: "child", label: "Child" },
@@ -213,24 +316,101 @@ const FamilyMembersList: React.FC<FamilyMembersListProps> = ({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="age_range">Age Range</Label>
-                <Select
-                  value={newMember.age_range}
-                  onValueChange={(value) =>
-                    handleSelectChange("age_range", value)
-                  }
-                >
-                  <SelectTrigger id="age_range">
-                    <SelectValue placeholder="Select age range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ageRangeOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="birthdate">Birthdate</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal bg-gradient-to-r from-pink-50 to-purple-50 border-purple-200 hover:from-pink-100 hover:to-purple-100"
+                    >
+                      <Calendar className="mr-2 h-4 w-4 text-purple-500" />
+                      {newMember.birthdate ? (
+                        format(new Date(newMember.birthdate), "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-auto p-0 border-purple-200 shadow-lg"
+                    align="start"
+                  >
+                    <div className="p-3 space-y-4">
+                      <div className="flex justify-center">
+                        <Select
+                          value={newMemberYearRef.current.toString()}
+                          onValueChange={handleNewMemberYearChange}
+                        >
+                          <SelectTrigger className="w-[120px] bg-purple-50 border-purple-200 focus:ring-purple-500">
+                            <SelectValue placeholder="Year" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-[240px]">
+                            {Array.from(
+                              { length: new Date().getFullYear() - 1899 },
+                              (_, i) => (
+                                <SelectItem
+                                  key={1900 + i}
+                                  value={(1900 + i).toString()}
+                                >
+                                  {1900 + i}
+                                </SelectItem>
+                              ),
+                            ).reverse()}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <CalendarComponent
+                        mode="single"
+                        selected={
+                          newMember.birthdate
+                            ? new Date(newMember.birthdate)
+                            : undefined
+                        }
+                        onSelect={(date) => {
+                          if (date) {
+                            // Use the year from our ref
+                            const newDate = new Date(date);
+                            newDate.setFullYear(newMemberYearRef.current);
+
+                            handleInputChange({
+                              target: {
+                                name: "birthdate",
+                                value: newDate.toISOString(),
+                              },
+                            } as React.ChangeEvent<HTMLInputElement>);
+                          }
+                        }}
+                        disabled={(date) => date > new Date()}
+                        initialFocus
+                        className="rounded-md border border-purple-200"
+                        defaultMonth={
+                          newMember.birthdate
+                            ? new Date(newMember.birthdate)
+                            : new Date(
+                                new Date().setFullYear(
+                                  newMemberYearRef.current,
+                                ),
+                              )
+                        }
+                        month={
+                          newMember.birthdate
+                            ? new Date(newMember.birthdate)
+                            : new Date(
+                                new Date().setFullYear(
+                                  newMemberYearRef.current,
+                                ),
+                              )
+                        }
+                      />
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {newMember.birthdate && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Age: {calculateAge(newMember.birthdate)}
+                  </p>
+                )}
               </div>
             </div>
             <DialogFooter>
@@ -307,24 +487,105 @@ const FamilyMembersList: React.FC<FamilyMembersListProps> = ({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="edit-age_range">Age Range</Label>
-                  <Select
-                    value={editingMember.age_range || ""}
-                    onValueChange={(value) =>
-                      handleSelectChange("age_range", value)
-                    }
-                  >
-                    <SelectTrigger id="edit-age_range">
-                      <SelectValue placeholder="Select age range" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ageRangeOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="edit-birthdate">Birthdate</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal bg-gradient-to-r from-pink-50 to-purple-50 border-purple-200 hover:from-pink-100 hover:to-purple-100"
+                      >
+                        <Calendar className="mr-2 h-4 w-4 text-purple-500" />
+                        {editingMember.birthdate ? (
+                          format(new Date(editingMember.birthdate), "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-auto p-0 border-purple-200 shadow-lg"
+                      align="start"
+                    >
+                      <div className="p-3 space-y-4">
+                        <div className="flex justify-center">
+                          <Select
+                            value={
+                              editingMember.birthdate
+                                ? new Date(editingMember.birthdate)
+                                    .getFullYear()
+                                    .toString()
+                                : editingMemberYearRef.current.toString()
+                            }
+                            onValueChange={handleEditingMemberYearChange}
+                          >
+                            <SelectTrigger className="w-[120px] bg-purple-50 border-purple-200 focus:ring-purple-500">
+                              <SelectValue placeholder="Year" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[240px]">
+                              {Array.from(
+                                { length: new Date().getFullYear() - 1899 },
+                                (_, i) => (
+                                  <SelectItem
+                                    key={1900 + i}
+                                    value={(1900 + i).toString()}
+                                  >
+                                    {1900 + i}
+                                  </SelectItem>
+                                ),
+                              ).reverse()}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <CalendarComponent
+                          mode="single"
+                          selected={
+                            editingMember.birthdate
+                              ? new Date(editingMember.birthdate)
+                              : undefined
+                          }
+                          onSelect={(date) => {
+                            if (date && editingMember) {
+                              // Use the year from our ref
+                              const newDate = new Date(date);
+                              newDate.setFullYear(editingMemberYearRef.current);
+
+                              setEditingMember({
+                                ...editingMember,
+                                birthdate: newDate.toISOString(),
+                              });
+                            }
+                          }}
+                          disabled={(date) => date > new Date()}
+                          initialFocus
+                          className="rounded-md border border-purple-200"
+                          defaultMonth={
+                            editingMember.birthdate
+                              ? new Date(editingMember.birthdate)
+                              : new Date(
+                                  new Date().setFullYear(
+                                    editingMemberYearRef.current,
+                                  ),
+                                )
+                          }
+                          month={
+                            editingMember.birthdate
+                              ? new Date(editingMember.birthdate)
+                              : new Date(
+                                  new Date().setFullYear(
+                                    editingMemberYearRef.current,
+                                  ),
+                                )
+                          }
+                        />
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  {editingMember.birthdate && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Age: {calculateAge(editingMember.birthdate)}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -383,17 +644,30 @@ const FamilyMembersList: React.FC<FamilyMembersListProps> = ({
                       relationshipOptions.find(
                         (o) => o.value === member.relationship,
                       )?.label}
-                    {member.relationship && member.age_range && " • "}
-                    {member.age_range &&
-                      ageRangeOptions.find((o) => o.value === member.age_range)
-                        ?.label}
+                    {member.relationship && member.birthdate && " • "}
+                    {member.birthdate && (
+                      <>
+                        {getAgeRangeLabel(calculateAgeRange(member.birthdate))}
+                        <span className="text-xs ml-1">
+                          ({calculateAge(member.birthdate)})
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="flex space-x-2">
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setEditingMember(member)}
+                    onClick={() => {
+                      // Initialize the year ref when starting to edit
+                      if (member.birthdate) {
+                        editingMemberYearRef.current = new Date(
+                          member.birthdate,
+                        ).getFullYear();
+                      }
+                      setEditingMember(member);
+                    }}
                     disabled={loading}
                   >
                     <Pencil className="h-4 w-4" />

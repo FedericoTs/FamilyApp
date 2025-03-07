@@ -12,6 +12,7 @@ export type Database = {
       family_members: {
         Row: {
           age_range: string | null
+          birthdate: string | null
           created_at: string | null
           id: string
           name: string
@@ -21,6 +22,7 @@ export type Database = {
         }
         Insert: {
           age_range?: string | null
+          birthdate?: string | null
           created_at?: string | null
           id?: string
           name: string
@@ -30,6 +32,7 @@ export type Database = {
         }
         Update: {
           age_range?: string | null
+          birthdate?: string | null
           created_at?: string | null
           id?: string
           name?: string
@@ -117,9 +120,55 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      family_members_with_age_range: {
+        Row: {
+          age_range: string | null
+          birthdate: string | null
+          created_at: string | null
+          id: string | null
+          name: string | null
+          profile_id: string | null
+          relationship: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          age_range?: never
+          birthdate?: string | null
+          created_at?: string | null
+          id?: string | null
+          name?: string | null
+          profile_id?: string | null
+          relationship?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          age_range?: never
+          birthdate?: string | null
+          created_at?: string | null
+          id?: string | null
+          name?: string | null
+          profile_id?: string | null
+          relationship?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      calculate_age_range: {
+        Args: {
+          birthdate: string
+        }
+        Returns: string
+      }
       create_profile: {
         Args: {
           user_id: string

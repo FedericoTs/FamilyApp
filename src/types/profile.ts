@@ -23,7 +23,7 @@ export interface FamilyMember {
   profile_id: string;
   name: string;
   relationship: string | null;
-  age_range: string | null;
+  birthdate: string | null;
   created_at: string;
   updated_at: string;
 }
