@@ -138,7 +138,6 @@ const Landing = () => {
           </div>
         )}
       </nav>
-
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-b from-white to-purple-50 pt-16 pb-20 md:pt-24 md:pb-28">
         <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16">
@@ -191,9 +190,9 @@ const Landing = () => {
               <div className="absolute -top-12 -right-12 w-40 h-40 bg-yellow-200 rounded-full opacity-50"></div>
               <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-purple-200 rounded-full opacity-50"></div>
               <img
-                src="https://unsplash.com/it/foto/3-women-and-2-men-sitting-on-green-grass-field-during-daytime-4_mJ1TbMK8A"
+                src="https://i.postimg.cc/0QzmkrBD/DALL-E-2025-03-07-14-31-54-A-highly-realistic-high-quality-4-K-vertical-image-of-a-happy-family-of.webp"
                 alt="Family enjoying a park"
-                className="relative z-10 rounded-2xl shadow-xl w-full h-auto object-cover"
+                className="relative z-10 rounded-2xl shadow-xl w-full object-cover h-[-4780x-] h-[620px]"
               />
             </div>
           </div>
@@ -203,7 +202,6 @@ const Landing = () => {
         <div className="absolute top-1/4 left-4 w-12 h-12 bg-pink-200 rounded-full opacity-30"></div>
         <div className="absolute bottom-1/3 right-8 w-20 h-20 bg-purple-200 rounded-full opacity-30"></div>
       </section>
-
       {/* Features Section */}
       <section id="features" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16">
@@ -331,7 +329,6 @@ const Landing = () => {
           </div>
         </div>
       </section>
-
       {/* Reviews Section */}
       <section id="reviews" className="py-20 bg-purple-50">
         <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16">
@@ -419,7 +416,6 @@ const Landing = () => {
           </div>
         </div>
       </section>
-
       {/* About Us Section */}
       <section id="about" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16">
@@ -472,7 +468,6 @@ const Landing = () => {
           </div>
         </div>
       </section>
-
       {/* CTA Section */}
       <section className="py-16 bg-gradient-to-r from-pink-500 to-purple-600 text-white">
         <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16 text-center">
@@ -489,7 +484,6 @@ const Landing = () => {
           </Link>
         </div>
       </section>
-
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-12">
         <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-16">
