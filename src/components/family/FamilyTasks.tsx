@@ -11,6 +11,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNotifications } from "@/hooks/useNotifications";
+import { checkTasksForNotifications } from "@/services/taskNotificationService";
 import {
   Dialog,
   DialogContent,
@@ -78,6 +80,7 @@ interface DbTask {
 const FamilyTasks: React.FC<FamilyTasksProps> = ({ familyMembers = [] }) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { unreadCount } = useNotifications();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,6 +137,9 @@ const FamilyTasks: React.FC<FamilyTasksProps> = ({ familyMembers = [] }) => {
         }));
 
         setTasks(formattedTasks);
+
+        // Check for tasks that need notifications
+        await checkTasksForNotifications(user.id);
       } catch (err: any) {
         console.error("Error fetching tasks:", err);
         setError(err.message);
@@ -202,9 +208,40 @@ const FamilyTasks: React.FC<FamilyTasksProps> = ({ familyMembers = [] }) => {
         });
       } else {
         // Add new task
-        const { error } = await supabase.from("family_tasks").insert(taskData);
+        const { data, error } = await supabase
+          .from("family_tasks")
+          .insert(taskData)
+          .select();
 
         if (error) throw error;
+
+        // Check if the task is due soon and create a notification if needed
+        if (data && data.length > 0) {
+          const taskId = data[0].id;
+          const dueDate = newTask.dueDate;
+          const today = new Date();
+          const tomorrow = addDays(today, 1);
+
+          // If task is due today or tomorrow, create a notification
+          if (
+            isToday(dueDate) ||
+            (isBefore(dueDate, addDays(tomorrow, 1)) &&
+              !isBefore(dueDate, tomorrow))
+          ) {
+            // Import the specific function to avoid circular dependencies
+            const { createTaskReminder } = await import(
+              "@/services/taskNotificationService"
+            );
+            await createTaskReminder(
+              user.id,
+              taskId,
+              newTask.title,
+              dueDate,
+              newTask.priority as string,
+              newTask.assignedTo,
+            );
+          }
+        }
 
         toast({
           title: "Task added",
