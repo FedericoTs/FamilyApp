@@ -100,6 +100,56 @@ export type Database = {
           },
         ]
       }
+      family_tasks: {
+        Row: {
+          assigned_to: string
+          category: string
+          completed: boolean
+          created_at: string | null
+          description: string | null
+          due_date: string
+          id: string
+          priority: string
+          profile_id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_to: string
+          category: string
+          completed?: boolean
+          created_at?: string | null
+          description?: string | null
+          due_date: string
+          id?: string
+          priority: string
+          profile_id: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_to?: string
+          category?: string
+          completed?: boolean
+          created_at?: string | null
+          description?: string | null
+          due_date?: string
+          id?: string
+          priority?: string
+          profile_id?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_tasks_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           category: string
