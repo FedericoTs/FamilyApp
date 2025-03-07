@@ -100,6 +100,50 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          category: string
+          created_at: string | null
+          id: string
+          message: string
+          profile_id: string
+          read: boolean | null
+          title: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          id?: string
+          message: string
+          profile_id: string
+          read?: boolean | null
+          title: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          id?: string
+          message?: string
+          profile_id?: string
+          read?: boolean | null
+          title?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profile_settings: {
         Row: {
           color_palette: string | null
