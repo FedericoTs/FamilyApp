@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FamilyMember } from "@/types/profile";
+import { useToast } from "@/components/ui/use-toast";
+import { Toaster } from "@/components/ui/toaster";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +32,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, addDays, isBefore, isToday, isPast } from "date-fns";
+import { format, addDays, isBefore, isToday, isPast, parseISO } from "date-fns";
 import {
   CheckSquare,
   Plus,
@@ -38,6 +42,8 @@ import {
   Edit,
   Filter,
   ArrowUpDown,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 
 interface FamilyTasksProps {
@@ -55,56 +61,27 @@ interface Task {
   category: "household" | "school" | "shopping" | "personal" | "other";
 }
 
+interface DbTask {
+  id: string;
+  profile_id: string;
+  title: string;
+  description: string | null;
+  due_date: string;
+  assigned_to: string;
+  priority: "high" | "medium" | "low";
+  completed: boolean;
+  category: "household" | "school" | "shopping" | "personal" | "other";
+  created_at: string;
+  updated_at: string;
+}
+
 const FamilyTasks: React.FC<FamilyTasksProps> = ({ familyMembers = [] }) => {
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: "1",
-      title: "Buy groceries for the week",
-      description: "Milk, eggs, bread, fruits, and vegetables",
-      dueDate: addDays(new Date(), 1),
-      assignedTo: "Mom",
-      priority: "high",
-      completed: false,
-      category: "shopping",
-    },
-    {
-      id: "2",
-      title: "Pick up dry cleaning",
-      dueDate: new Date(),
-      assignedTo: "Dad",
-      priority: "medium",
-      completed: false,
-      category: "personal",
-    },
-    {
-      id: "3",
-      title: "Complete science project",
-      description: "Solar system model due for science class",
-      dueDate: addDays(new Date(), 3),
-      assignedTo: "Emma",
-      priority: "high",
-      completed: false,
-      category: "school",
-    },
-    {
-      id: "4",
-      title: "Clean the garage",
-      dueDate: addDays(new Date(), 5),
-      assignedTo: "Dad",
-      priority: "low",
-      completed: false,
-      category: "household",
-    },
-    {
-      id: "5",
-      title: "Take out the trash",
-      dueDate: addDays(new Date(), -1),
-      assignedTo: "Jack",
-      priority: "medium",
-      completed: true,
-      category: "household",
-    },
-  ]);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [newTask, setNewTask] = useState<Partial<Task>>({
@@ -128,46 +105,157 @@ const FamilyTasks: React.FC<FamilyTasksProps> = ({ familyMembers = [] }) => {
   );
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
-  const handleAddTask = () => {
-    if (!newTask.title || !newTask.dueDate || !newTask.assignedTo) return;
+  // Fetch tasks from Supabase
+  useEffect(() => {
+    if (!user) return;
 
-    const task: Task = {
-      id: newTask.id || Date.now().toString(),
-      title: newTask.title,
-      description: newTask.description,
-      dueDate: newTask.dueDate,
-      assignedTo: newTask.assignedTo,
-      priority: (newTask.priority as "high" | "medium" | "low") || "medium",
-      completed: newTask.completed || false,
-      category:
-        (newTask.category as
-          | "household"
-          | "school"
-          | "shopping"
-          | "personal"
-          | "other") || "other",
+    const fetchTasks = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const { data, error } = await supabase
+          .from("family_tasks")
+          .select("*")
+          .eq("profile_id", user.id);
+
+        if (error) throw error;
+
+        // Convert database tasks to the Task format used by the component
+        const formattedTasks: Task[] = data.map((dbTask: DbTask) => ({
+          id: dbTask.id,
+          title: dbTask.title,
+          description: dbTask.description || undefined,
+          dueDate: parseISO(dbTask.due_date),
+          assignedTo: dbTask.assigned_to,
+          priority: dbTask.priority,
+          completed: dbTask.completed,
+          category: dbTask.category,
+        }));
+
+        setTasks(formattedTasks);
+      } catch (err: any) {
+        console.error("Error fetching tasks:", err);
+        setError(err.message);
+        toast({
+          variant: "destructive",
+          title: "Error loading tasks",
+          description: "Failed to load your family tasks.",
+        });
+      } finally {
+        setLoading(false);
+      }
     };
 
-    if (newTask.id) {
-      // Update existing task
-      setTasks(tasks.map((t) => (t.id === task.id ? task : t)));
-    } else {
-      // Add new task
-      setTasks([...tasks, task]);
-    }
+    fetchTasks();
 
-    setNewTask({
-      dueDate: new Date(),
-      priority: "medium",
-      completed: false,
-      category: "household",
-      assignedTo: "",
-    });
-    setIsAddTaskOpen(false);
+    // Set up realtime subscription
+    const subscription = supabase
+      .channel("family_tasks_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "family_tasks",
+          filter: `profile_id=eq.${user.id}`,
+        },
+        fetchTasks,
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user, toast]);
+
+  const handleAddTask = async () => {
+    if (!user || !newTask.title || !newTask.dueDate || !newTask.assignedTo)
+      return;
+
+    setIsSubmitting(true);
+
+    try {
+      const taskData = {
+        profile_id: user.id,
+        title: newTask.title,
+        description: newTask.description || null,
+        due_date: newTask.dueDate.toISOString(),
+        assigned_to: newTask.assignedTo,
+        priority: newTask.priority || "medium",
+        completed: newTask.completed || false,
+        category: newTask.category || "household",
+      };
+
+      if (newTask.id) {
+        // Update existing task
+        const { error } = await supabase
+          .from("family_tasks")
+          .update(taskData)
+          .eq("id", newTask.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Task updated",
+          description: "Your task has been updated successfully.",
+        });
+      } else {
+        // Add new task
+        const { error } = await supabase.from("family_tasks").insert(taskData);
+
+        if (error) throw error;
+
+        toast({
+          title: "Task added",
+          description: "Your new task has been added to the list.",
+        });
+      }
+
+      // Reset form
+      setNewTask({
+        dueDate: new Date(),
+        priority: "medium",
+        completed: false,
+        category: "household",
+        assignedTo: "",
+      });
+      setIsAddTaskOpen(false);
+    } catch (err: any) {
+      console.error("Error saving task:", err);
+      toast({
+        variant: "destructive",
+        title: "Error saving task",
+        description: err.message || "Failed to save your task.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDeleteTask = (id: string) => {
-    setTasks(tasks.filter((task) => task.id !== id));
+  const handleDeleteTask = async (id: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from("family_tasks")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Task deleted",
+        description: "The task has been removed from your list.",
+      });
+    } catch (err: any) {
+      console.error("Error deleting task:", err);
+      toast({
+        variant: "destructive",
+        title: "Error deleting task",
+        description: err.message || "Failed to delete the task.",
+      });
+    }
   };
 
   const handleEditTask = (task: Task) => {
@@ -175,12 +263,27 @@ const FamilyTasks: React.FC<FamilyTasksProps> = ({ familyMembers = [] }) => {
     setIsAddTaskOpen(true);
   };
 
-  const handleToggleComplete = (id: string) => {
-    setTasks(
-      tasks.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task,
-      ),
-    );
+  const handleToggleComplete = async (id: string) => {
+    if (!user) return;
+
+    const taskToUpdate = tasks.find((task) => task.id === id);
+    if (!taskToUpdate) return;
+
+    try {
+      const { error } = await supabase
+        .from("family_tasks")
+        .update({ completed: !taskToUpdate.completed })
+        .eq("id", id);
+
+      if (error) throw error;
+    } catch (err: any) {
+      console.error("Error updating task completion status:", err);
+      toast({
+        variant: "destructive",
+        title: "Error updating task",
+        description: err.message || "Failed to update task status.",
+      });
+    }
   };
 
   const getPriorityColor = (priority: string) => {
@@ -271,6 +374,7 @@ const FamilyTasks: React.FC<FamilyTasksProps> = ({ familyMembers = [] }) => {
 
   return (
     <div className="space-y-6">
+      <Toaster />
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h2 className="text-2xl font-bold text-purple-700 flex items-center">
           <CheckSquare className="mr-2 h-6 w-6" />
@@ -420,235 +524,270 @@ const FamilyTasks: React.FC<FamilyTasksProps> = ({ familyMembers = [] }) => {
               )}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddTaskOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsAddTaskOpen(false)}
+                disabled={isSubmitting}
+              >
                 Cancel
               </Button>
               <Button
                 onClick={handleAddTask}
                 className="bg-gradient-to-r from-pink-500 to-purple-600"
+                disabled={isSubmitting}
               >
-                {newTask.id ? "Update Task" : "Add Task"}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {newTask.id ? "Updating..." : "Adding..."}
+                  </>
+                ) : newTask.id ? (
+                  "Update Task"
+                ) : (
+                  "Add Task"
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <CardTitle className="text-xl font-medium">Task List</CardTitle>
-            <div className="flex flex-wrap gap-2">
-              <Select
-                value={filter.status}
-                onValueChange={(value) =>
-                  setFilter({ ...filter, status: value as any })
-                }
-              >
-                <SelectTrigger className="w-[130px]">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Tasks</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
+      {loading && (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+          <span className="ml-2">Loading tasks...</span>
+        </div>
+      )}
 
-              <Select
-                value={filter.assignee}
-                onValueChange={(value) =>
-                  setFilter({ ...filter, assignee: value })
-                }
-              >
-                <SelectTrigger className="w-[130px]">
-                  <SelectValue placeholder="Assignee" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Members</SelectItem>
-                  {uniqueAssignees.map((name) => (
-                    <SelectItem key={name} value={name}>
-                      {name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      {error && (
+        <div
+          className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative"
+          role="alert"
+        >
+          <strong className="font-bold">Error!</strong>
+          <span className="block sm:inline"> {error}</span>
+        </div>
+      )}
 
-              <Select
-                value={filter.category}
-                onValueChange={(value) =>
-                  setFilter({ ...filter, category: value })
-                }
-              >
-                <SelectTrigger className="w-[130px]">
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="household">Household</SelectItem>
-                  <SelectItem value="school">School</SelectItem>
-                  <SelectItem value="shopping">Shopping</SelectItem>
-                  <SelectItem value="personal">Personal</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
+      {!loading && !error && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <CardTitle className="text-xl font-medium">Task List</CardTitle>
+              <div className="flex flex-wrap gap-2">
+                <Select
+                  value={filter.status}
+                  onValueChange={(value) =>
+                    setFilter({ ...filter, status: value as any })
+                  }
+                >
+                  <SelectTrigger className="w-[130px]">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Tasks</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={filter.assignee}
+                  onValueChange={(value) =>
+                    setFilter({ ...filter, assignee: value })
+                  }
+                >
+                  <SelectTrigger className="w-[130px]">
+                    <SelectValue placeholder="Assignee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Members</SelectItem>
+                    {uniqueAssignees.map((name) => (
+                      <SelectItem key={name} value={name}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={filter.category}
+                  onValueChange={(value) =>
+                    setFilter({ ...filter, category: value })
+                  }
+                >
+                  <SelectTrigger className="w-[130px]">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    <SelectItem value="household">Household</SelectItem>
+                    <SelectItem value="school">School</SelectItem>
+                    <SelectItem value="shopping">Shopping</SelectItem>
+                    <SelectItem value="personal">Personal</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {sortedTasks.length === 0 ? (
-            <div className="text-center py-8">
-              <CheckSquare className="mx-auto h-12 w-12 text-gray-300" />
-              <h3 className="mt-2 text-lg font-medium text-gray-900">
-                No tasks found
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {filter.status !== "all" ||
-                filter.assignee !== "all" ||
-                filter.category !== "all"
-                  ? "Try changing your filters or"
-                  : "Get started by"}{" "}
-                adding a new task.
-              </p>
-              <Button
-                onClick={() => setIsAddTaskOpen(true)}
-                className="mt-4 bg-gradient-to-r from-pink-500 to-purple-600"
-              >
-                <Plus className="h-4 w-4 mr-2" /> Add Task
-              </Button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-2 font-medium w-10"></th>
-                    <th className="text-left py-3 px-2 font-medium">
-                      <button
-                        className="flex items-center hover:text-purple-700"
-                        onClick={() => toggleSort("dueDate")}
-                      >
-                        Due Date
-                        <ArrowUpDown
-                          className={`ml-1 h-4 w-4 ${sortBy === "dueDate" ? "text-purple-700" : "text-gray-400"}`}
-                        />
-                      </button>
-                    </th>
-                    <th className="text-left py-3 px-2 font-medium">
-                      <button
-                        className="flex items-center hover:text-purple-700"
-                        onClick={() => toggleSort("assignee")}
-                      >
-                        Assigned To
-                        <ArrowUpDown
-                          className={`ml-1 h-4 w-4 ${sortBy === "assignee" ? "text-purple-700" : "text-gray-400"}`}
-                        />
-                      </button>
-                    </th>
-                    <th className="text-left py-3 px-2 font-medium">Task</th>
-                    <th className="text-left py-3 px-2 font-medium">
-                      <button
-                        className="flex items-center hover:text-purple-700"
-                        onClick={() => toggleSort("priority")}
-                      >
-                        Priority
-                        <ArrowUpDown
-                          className={`ml-1 h-4 w-4 ${sortBy === "priority" ? "text-purple-700" : "text-gray-400"}`}
-                        />
-                      </button>
-                    </th>
-                    <th className="text-left py-3 px-2 font-medium">
-                      Category
-                    </th>
-                    <th className="text-right py-3 px-2 font-medium">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedTasks.map((task) => (
-                    <tr
-                      key={task.id}
-                      className="border-b last:border-0 hover:bg-gray-50"
-                    >
-                      <td className="py-3 px-2">
-                        <Checkbox
-                          checked={task.completed}
-                          onCheckedChange={() => handleToggleComplete(task.id)}
-                        />
-                      </td>
-                      <td className="py-3 px-2">
-                        <div
-                          className={`flex items-center ${getStatusColor(task)}`}
+          </CardHeader>
+          <CardContent>
+            {sortedTasks.length === 0 ? (
+              <div className="text-center py-8">
+                <CheckSquare className="mx-auto h-12 w-12 text-gray-300" />
+                <h3 className="mt-2 text-lg font-medium text-gray-900">
+                  No tasks found
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  {filter.status !== "all" ||
+                  filter.assignee !== "all" ||
+                  filter.category !== "all"
+                    ? "Try changing your filters or"
+                    : "Get started by"}{" "}
+                  adding a new task.
+                </p>
+                <Button
+                  onClick={() => setIsAddTaskOpen(true)}
+                  className="mt-4 bg-gradient-to-r from-pink-500 to-purple-600"
+                >
+                  <Plus className="h-4 w-4 mr-2" /> Add Task
+                </Button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-3 px-2 font-medium w-10"></th>
+                      <th className="text-left py-3 px-2 font-medium">
+                        <button
+                          className="flex items-center hover:text-purple-700"
+                          onClick={() => toggleSort("dueDate")}
                         >
-                          <CalendarIcon className="h-4 w-4 mr-1 text-gray-500" />
-                          <span>{format(task.dueDate, "MMM d")}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-2">
-                        <div className="flex items-center">
-                          <Avatar className="h-6 w-6 mr-2">
-                            <AvatarImage
-                              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${task.assignedTo}`}
-                            />
-                            <AvatarFallback>
-                              {task.assignedTo.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className={getStatusColor(task)}>
-                            {task.assignedTo}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-2">
-                        <div className={getStatusColor(task)}>
-                          <div className="font-medium">{task.title}</div>
-                          {task.description && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              {task.description}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-2">
-                        <Badge className={getPriorityColor(task.priority)}>
-                          {task.priority}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-2">
-                        <Badge className={getCategoryColor(task.category)}>
-                          {task.category}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-2 text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-gray-500 hover:text-purple-600"
-                            onClick={() => handleEditTask(task)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-gray-500 hover:text-red-600"
-                            onClick={() => handleDeleteTask(task.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
+                          Due Date
+                          <ArrowUpDown
+                            className={`ml-1 h-4 w-4 ${sortBy === "dueDate" ? "text-purple-700" : "text-gray-400"}`}
+                          />
+                        </button>
+                      </th>
+                      <th className="text-left py-3 px-2 font-medium">
+                        <button
+                          className="flex items-center hover:text-purple-700"
+                          onClick={() => toggleSort("assignee")}
+                        >
+                          Assigned To
+                          <ArrowUpDown
+                            className={`ml-1 h-4 w-4 ${sortBy === "assignee" ? "text-purple-700" : "text-gray-400"}`}
+                          />
+                        </button>
+                      </th>
+                      <th className="text-left py-3 px-2 font-medium">Task</th>
+                      <th className="text-left py-3 px-2 font-medium">
+                        <button
+                          className="flex items-center hover:text-purple-700"
+                          onClick={() => toggleSort("priority")}
+                        >
+                          Priority
+                          <ArrowUpDown
+                            className={`ml-1 h-4 w-4 ${sortBy === "priority" ? "text-purple-700" : "text-gray-400"}`}
+                          />
+                        </button>
+                      </th>
+                      <th className="text-left py-3 px-2 font-medium">
+                        Category
+                      </th>
+                      <th className="text-right py-3 px-2 font-medium">
+                        Actions
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  </thead>
+                  <tbody>
+                    {sortedTasks.map((task) => (
+                      <tr
+                        key={task.id}
+                        className="border-b last:border-0 hover:bg-gray-50"
+                      >
+                        <td className="py-3 px-2">
+                          <Checkbox
+                            checked={task.completed}
+                            onCheckedChange={() =>
+                              handleToggleComplete(task.id)
+                            }
+                          />
+                        </td>
+                        <td className="py-3 px-2">
+                          <div
+                            className={`flex items-center ${getStatusColor(task)}`}
+                          >
+                            <CalendarIcon className="h-4 w-4 mr-1 text-gray-500" />
+                            <span>{format(task.dueDate, "MMM d")}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-2">
+                          <div className="flex items-center">
+                            <Avatar className="h-6 w-6 mr-2">
+                              <AvatarImage
+                                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${task.assignedTo}`}
+                              />
+                              <AvatarFallback>
+                                {task.assignedTo.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className={getStatusColor(task)}>
+                              {task.assignedTo}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-2">
+                          <div className={getStatusColor(task)}>
+                            <div className="font-medium">{task.title}</div>
+                            {task.description && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                {task.description}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-2">
+                          <Badge className={getPriorityColor(task.priority)}>
+                            {task.priority}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-2">
+                          <Badge className={getCategoryColor(task.category)}>
+                            {task.category}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-2 text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-gray-500 hover:text-purple-600"
+                              onClick={() => handleEditTask(task)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-gray-500 hover:text-red-600"
+                              onClick={() => handleDeleteTask(task.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
