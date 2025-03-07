@@ -92,20 +92,95 @@ const FamilyNotifications: React.FC = () => {
   }, [user]);
 
   const handleMarkAsRead = async (id: string) => {
-    await markAsRead(id);
+    try {
+      const result = await markAsRead(id);
+      if (result.error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: `Failed to mark notification as read: ${result.error}`,
+        });
+      }
+    } catch (err) {
+      console.error("Error marking notification as read:", err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to mark notification as read. Please try again.",
+      });
+    }
   };
 
   const handleMarkAllAsRead = async () => {
-    await markAllAsRead();
+    try {
+      const result = await markAllAsRead();
+      if (result.error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: `Failed to mark all notifications as read: ${result.error}`,
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "All notifications marked as read",
+        });
+      }
+    } catch (err) {
+      console.error("Error marking all notifications as read:", err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description:
+          "Failed to mark all notifications as read. Please try again.",
+      });
+    }
   };
 
   const handleDeleteNotification = async (id: string) => {
-    await deleteNotification(id);
+    try {
+      const result = await deleteNotification(id);
+      if (result.error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: `Failed to delete notification: ${result.error}`,
+        });
+      }
+    } catch (err) {
+      console.error("Error deleting notification:", err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete notification. Please try again.",
+      });
+    }
   };
 
   const handleClearAll = async () => {
     if (confirm("Are you sure you want to clear all notifications?")) {
-      await deleteAllNotifications();
+      try {
+        const result = await deleteAllNotifications();
+        if (result.error) {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: `Failed to clear all notifications: ${result.error}`,
+          });
+        } else {
+          toast({
+            title: "Success",
+            description: "All notifications have been cleared",
+          });
+        }
+      } catch (err) {
+        console.error("Error clearing all notifications:", err);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to clear all notifications. Please try again.",
+        });
+      }
     }
   };
 
@@ -310,6 +385,15 @@ const FamilyNotifications: React.FC = () => {
                     <div
                       key={notification.id}
                       className={`p-4 border rounded-lg ${notification.read ? "bg-white" : "bg-purple-50 border-purple-200"}`}
+                      onClick={(e) => {
+                        if (!notification.read) {
+                          e.preventDefault();
+                          handleMarkAsRead(notification.id);
+                        }
+                      }}
+                      style={{
+                        cursor: notification.read ? "default" : "pointer",
+                      }}
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex items-start gap-3">
@@ -353,7 +437,13 @@ const FamilyNotifications: React.FC = () => {
                               variant="ghost"
                               size="sm"
                               className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                              onClick={() => handleMarkAsRead(notification.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                handleMarkAsRead(notification.id);
+                              }}
+                              aria-label="Mark as read"
+                              title="Mark as read"
                             >
                               <Check className="h-4 w-4" />
                             </Button>
@@ -362,9 +452,13 @@ const FamilyNotifications: React.FC = () => {
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
-                            onClick={() =>
-                              handleDeleteNotification(notification.id)
-                            }
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              handleDeleteNotification(notification.id);
+                            }}
+                            aria-label="Delete notification"
+                            title="Delete notification"
                           >
                             <X className="h-4 w-4" />
                           </Button>

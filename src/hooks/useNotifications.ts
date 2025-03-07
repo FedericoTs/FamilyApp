@@ -25,6 +25,7 @@ export function useNotifications() {
   useEffect(() => {
     if (!user) return;
 
+    let isMounted = true;
     const fetchNotifications = async () => {
       setLoading(true);
       setError(null);
@@ -38,13 +39,24 @@ export function useNotifications() {
 
         if (error) throw error;
 
-        setNotifications(data || []);
-        setUnreadCount(data?.filter((n: Notification) => !n.read).length || 0);
+        // Only update state if component is still mounted
+        if (isMounted) {
+          // Check if data is actually an array before setting state
+          const notificationsArray = Array.isArray(data) ? data : [];
+          setNotifications(notificationsArray);
+          setUnreadCount(
+            notificationsArray.filter((n: Notification) => !n.read).length || 0,
+          );
+        }
       } catch (err: any) {
         console.error("Error fetching notifications:", err);
-        setError(err.message);
+        if (isMounted) {
+          setError(err.message);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -66,6 +78,7 @@ export function useNotifications() {
       .subscribe();
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, [user]);
@@ -112,6 +125,17 @@ export function useNotifications() {
         .eq("id", id);
 
       if (error) throw error;
+
+      // Update local state immediately for real-time feedback
+      setNotifications((prev) =>
+        prev.map((notification) =>
+          notification.id === id
+            ? { ...notification, read: true }
+            : notification,
+        ),
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+
       return { error: null };
     } catch (error: any) {
       console.error("Error marking notification as read:", error);
@@ -131,6 +155,13 @@ export function useNotifications() {
         .eq("read", false);
 
       if (error) throw error;
+
+      // Update local state immediately for real-time feedback
+      setNotifications((prev) =>
+        prev.map((notification) => ({ ...notification, read: true })),
+      );
+      setUnreadCount(0);
+
       return { error: null };
     } catch (error: any) {
       console.error("Error marking all notifications as read:", error);
@@ -149,6 +180,18 @@ export function useNotifications() {
         .eq("id", id);
 
       if (error) throw error;
+
+      // Update local state immediately for real-time feedback
+      setNotifications((prev) =>
+        prev.filter((notification) => notification.id !== id),
+      );
+      setUnreadCount((prev) => {
+        const deletedNotification = notifications.find((n) => n.id === id);
+        return deletedNotification && !deletedNotification.read
+          ? prev - 1
+          : prev;
+      });
+
       return { error: null };
     } catch (error: any) {
       console.error("Error deleting notification:", error);
@@ -167,6 +210,11 @@ export function useNotifications() {
         .eq("profile_id", user.id);
 
       if (error) throw error;
+
+      // Update local state immediately for real-time feedback
+      setNotifications([]);
+      setUnreadCount(0);
+
       return { error: null };
     } catch (error: any) {
       console.error("Error deleting all notifications:", error);

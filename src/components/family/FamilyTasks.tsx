@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,8 +138,8 @@ const FamilyTasks: React.FC<FamilyTasksProps> = ({ familyMembers = [] }) => {
 
         setTasks(formattedTasks);
 
-        // Check for tasks that need notifications
-        await checkTasksForNotifications(user.id);
+        // We no longer check for notifications when the component mounts
+        // Notifications are only created when a task is added
       } catch (err: any) {
         console.error("Error fetching tasks:", err);
         setError(err.message);
@@ -215,23 +215,52 @@ const FamilyTasks: React.FC<FamilyTasksProps> = ({ familyMembers = [] }) => {
 
         if (error) throw error;
 
-        // Check if the task is due soon and create a notification if needed
+        // Always create a notification when a task is created
         if (data && data.length > 0) {
           const taskId = data[0].id;
           const dueDate = newTask.dueDate;
           const today = new Date();
           const tomorrow = addDays(today, 1);
 
-          // If task is due today or tomorrow, create a notification
-          if (
-            isToday(dueDate) ||
-            (isBefore(dueDate, addDays(tomorrow, 1)) &&
-              !isBefore(dueDate, tomorrow))
-          ) {
-            // Import the specific function to avoid circular dependencies
-            const { createTaskReminder } = await import(
-              "@/services/taskNotificationService"
+          // Import the functions to create notifications
+          const { createTaskReminder, createOverdueTaskNotification } =
+            await import("@/services/taskNotificationService");
+
+          // Create different types of notifications based on due date
+          if (isToday(dueDate)) {
+            // Due today - create urgent reminder
+            await createTaskReminder(
+              user.id,
+              taskId,
+              newTask.title,
+              dueDate,
+              newTask.priority as string,
+              newTask.assignedTo,
             );
+          } else if (
+            isBefore(dueDate, addDays(tomorrow, 1)) &&
+            !isBefore(dueDate, tomorrow)
+          ) {
+            // Due tomorrow - create advance notice
+            await createTaskReminder(
+              user.id,
+              taskId,
+              newTask.title,
+              dueDate,
+              newTask.priority as string,
+              newTask.assignedTo,
+            );
+          } else if (isPast(dueDate) && !isToday(dueDate)) {
+            // Already overdue - create overdue alert
+            await createOverdueTaskNotification(
+              user.id,
+              taskId,
+              newTask.title,
+              dueDate,
+              newTask.assignedTo,
+            );
+          } else {
+            // Future task - create standard reminder
             await createTaskReminder(
               user.id,
               taskId,

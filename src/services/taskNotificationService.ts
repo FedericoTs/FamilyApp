@@ -75,27 +75,32 @@ export const checkTasksForNotifications = async (userId: string) => {
     const today = new Date();
     const tomorrow = addDays(today, 1);
 
-    // Check for notifications that were already sent today to avoid duplicates
-    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+    // Check for notifications that were already sent for these tasks
+    // We'll query by task ID to ensure we don't create duplicates
     const { data: existingNotifications } = await supabase
       .from("notifications")
-      .select("message")
+      .select("message, title")
       .eq("profile_id", userId)
-      .gte("created_at", startOfDay.toISOString());
+      .eq("category", "family");
 
     const existingMessages = existingNotifications?.map((n) => n.message) || [];
+    const existingTitles = existingNotifications?.map((n) => n.title) || [];
 
     // Process each task
     for (const task of tasks || []) {
       const dueDate = new Date(task.due_date);
+      const taskTitle = `${task.priority.charAt(0).toUpperCase() + task.priority.slice(1)} Priority Task Reminder`;
+
+      // Skip if we already have a notification for this task with the same title
+      if (
+        existingTitles.includes(taskTitle) &&
+        existingMessages.some((msg) => msg.includes(task.title))
+      ) {
+        continue;
+      }
 
       // For tasks due today, create reminders
       if (isToday(dueDate)) {
-        const message = `Task "${task.title}" is due on ${format(dueDate, "EEEE, MMMM d")}. Assigned to: ${task.assigned_to}`;
-
-        // Skip if we already sent this notification today
-        if (existingMessages.some((msg) => msg === message)) continue;
-
         await createTaskReminder(
           userId,
           task.id,
@@ -110,11 +115,6 @@ export const checkTasksForNotifications = async (userId: string) => {
         isBefore(dueDate, addDays(tomorrow, 1)) &&
         !isBefore(dueDate, tomorrow)
       ) {
-        const message = `Task "${task.title}" is due on ${format(dueDate, "EEEE, MMMM d")}. Assigned to: ${task.assigned_to}`;
-
-        // Skip if we already sent this notification today
-        if (existingMessages.some((msg) => msg === message)) continue;
-
         await createTaskReminder(
           userId,
           task.id,
@@ -126,10 +126,13 @@ export const checkTasksForNotifications = async (userId: string) => {
       }
       // For overdue tasks, create alerts
       else if (isPast(dueDate) && !isToday(dueDate)) {
-        const message = `Task "${task.title}" assigned to ${task.assigned_to} is overdue! It was due on ${format(dueDate, "MMMM d")}.`;
-
-        // Skip if we already sent this notification today
-        if (existingMessages.some((msg) => msg === message)) continue;
+        // Skip if we already have an overdue notification for this task
+        if (
+          existingTitles.includes("Overdue Task Alert") &&
+          existingMessages.some((msg) => msg.includes(task.title))
+        ) {
+          continue;
+        }
 
         await createOverdueTaskNotification(
           userId,
