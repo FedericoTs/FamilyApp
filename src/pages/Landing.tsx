@@ -190,7 +190,7 @@ const Landing = () => {
               <div className="absolute -top-12 -right-12 w-40 h-40 bg-yellow-200 rounded-full opacity-50"></div>
               <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-purple-200 rounded-full opacity-50"></div>
               <img
-                src="https://i.postimg.cc/0QzmkrBD/DALL-E-2025-03-07-14-31-54-A-highly-realistic-high-quality-4-K-vertical-image-of-a-happy-family-of.webp"
+                src="https://img.freepik.com/premium-photo/family-holding-hands-silhouette-silhouette-family-walking-handinhand-symbolizing-unity_121452-3321.jpg"
                 alt="Family enjoying a park"
                 className="relative z-10 rounded-2xl shadow-xl w-full object-cover h-[-4780x-] h-[620px]"
               />
