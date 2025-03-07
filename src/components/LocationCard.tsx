@@ -19,6 +19,9 @@ import {
   Eye,
 } from "lucide-react";
 import LocationDetailsModal from "./LocationDetailsModal";
+import { useSavedLocations } from "@/hooks/useSavedLocations";
+import { useToast } from "./ui/use-toast";
+import { Location } from "@/types/location";
 
 interface LocationCardProps {
   name?: string;
@@ -46,92 +49,183 @@ const LocationCard = ({
   onClose = () => {},
 }: LocationCardProps) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const { isLocationSaved, saveLocation, removeSavedLocation } =
+    useSavedLocations();
+  const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Check if this location is saved in the database
+  // This will override the isBookmarked prop with the actual saved state from the database
+  const locationId = name.replace(/\s+/g, "-").toLowerCase();
+  // Always prioritize the database state over the prop
+  const isSaved = isLocationSaved?.(locationId) ?? isBookmarked;
+
+  const handleBookmarkToggle = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault(); // Prevent any parent click events
+      e.stopPropagation();
+    }
+
+    if (isSaving) return; // Prevent multiple clicks
+
+    setIsSaving(true);
+
+    try {
+      // Directly use the saved locations hook functions
+      if (isSaved) {
+        // If already saved, remove it
+        (await removeSavedLocation?.(locationId)) || onBookmarkToggle();
+      } else {
+        // If not saved, save it
+        const location = {
+          id: locationId,
+          name,
+          type: "Place",
+          position: { lat: 0, lng: 0 }, // Default position if not provided
+          distance,
+          rating: rating || 0,
+          amenities: amenities || [],
+          ageRange,
+          address: "",
+          imageUrl,
+          isBookmarked: true,
+        };
+        (await saveLocation?.(location)) || onBookmarkToggle();
+      }
+
+      // Show toast notification
+      toast({
+        title: isSaved ? "Location Removed" : "Location Saved",
+        description: isSaved
+          ? `${name} has been removed from your saved places.`
+          : `${name} has been added to your saved places.`,
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error("Error toggling bookmark:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to ${isSaved ? "remove" : "save"} location. Please try again.`,
+        duration: 3000,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
-    <Card className="w-[350px] overflow-hidden bg-white shadow-lg h-full relative">
-      <div className="relative h-32">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-2 left-2 bg-white/80 rounded-full hover:bg-white z-10"
-          onClick={onClose}
-        >
-          <X className="h-4 w-4 text-gray-600" />
-        </Button>
-        <img src={imageUrl} alt={name} className="w-full h-full object-cover" />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-2 right-2 bg-white/80 rounded-full hover:bg-white"
-          onClick={onBookmarkToggle}
-        >
-          {isBookmarked ? (
-            <BookmarkCheck className="h-5 w-5 text-pink-500" />
-          ) : (
-            <Bookmark className="h-5 w-5 text-gray-600" />
-          )}
-        </Button>
-      </div>
-      <CardHeader className="pb-2 pt-3">
-        <div className="flex justify-between items-start">
-          <CardTitle className="text-lg font-bold text-gray-800">
-            {name}
-          </CardTitle>
-          <div className="flex items-center gap-1">
-            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-            <span className="text-sm font-medium">{rating}</span>
+    <Card className="w-full max-w-md bg-white shadow-lg rounded-lg overflow-hidden">
+      <CardHeader className="p-0 relative">
+        <div className="h-48 w-full relative">
+          <img
+            src={imageUrl}
+            alt={name}
+            className="h-full w-full object-cover"
+          />
+          <Button
+            variant={isSaved ? "default" : "ghost"}
+            size="icon"
+            className={`absolute top-2 right-2 ${isSaved ? "bg-pink-500 hover:bg-pink-600" : "bg-white/80 hover:bg-white"} rounded-full`}
+            onClick={handleBookmarkToggle}
+            disabled={isSaving}
+            aria-label={
+              isSaved ? "Remove from saved locations" : "Save location"
+            }
+          >
+            {isSaving ? (
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            ) : isSaved ? (
+              <BookmarkCheck className="h-5 w-5 text-white" />
+            ) : (
+              <Bookmark className="h-5 w-5 text-gray-600" />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-2 left-2 bg-white/80 rounded-full hover:bg-white"
+            onClick={onClose}
+          >
+            <X className="h-5 w-5 text-gray-600" />
+          </Button>
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+            <CardTitle className="text-white text-xl font-bold">
+              {name}
+            </CardTitle>
+            <div className="flex items-center mt-1">
+              <Badge className="bg-pink-500 text-white mr-2">{ageRange}</Badge>
+              <div className="flex items-center text-white">
+                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
+                <span>{rating}</span>
+              </div>
+            </div>
           </div>
         </div>
-        <p className="text-sm text-gray-500 mt-1">{distance}</p>
       </CardHeader>
-      <CardContent className="py-0">
-        <div className="flex flex-wrap gap-1 mb-3">
-          {amenities.map((amenity, index) => (
-            <Badge
-              key={index}
-              variant="secondary"
-              className="bg-purple-100 text-purple-700 hover:bg-purple-200"
-            >
-              {amenity}
-            </Badge>
-          ))}
+      <CardContent className="p-4">
+        <div className="flex justify-between items-center mb-3">
+          <span className="text-gray-500">{distance}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-200"
+            onClick={() => setShowDetailsModal(true)}
+          >
+            <Eye className="h-4 w-4 mr-1" />
+            View Details
+          </Button>
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <div className="flex items-center gap-1">
-            <Baby className="h-4 w-4 text-blue-400" />
-            <span>{ageRange}</span>
+        <div className="space-y-3">
+          <div>
+            <h3 className="text-sm font-medium text-gray-700 mb-1">
+              Amenities
+            </h3>
+            <div className="flex flex-wrap gap-1">
+              {amenities.map((amenity, index) => (
+                <Badge
+                  key={index}
+                  variant="outline"
+                  className="bg-purple-50 text-purple-700 border-purple-200"
+                >
+                  {amenity}
+                </Badge>
+              ))}
+            </div>
           </div>
-          <div className="flex items-center gap-1 ml-3">
-            <Users className="h-4 w-4 text-blue-400" />
-            <span>Family-friendly</span>
+
+          <div>
+            <h3 className="text-sm font-medium text-gray-700 mb-1">
+              Family Features
+            </h3>
+            <div className="flex flex-wrap gap-1">
+              <Badge className="bg-blue-50 text-blue-700 border-blue-200">
+                <Baby className="h-3.5 w-3.5 mr-1" /> Kid-Friendly
+              </Badge>
+              <Badge className="bg-green-50 text-green-700 border-green-200">
+                <Users className="h-3.5 w-3.5 mr-1" /> Family Space
+              </Badge>
+            </div>
           </div>
         </div>
       </CardContent>
-      <CardFooter className="pt-3 flex flex-col gap-2">
+      <CardFooter className="p-4 pt-0">
         <Button
-          onClick={onGetDirections}
           className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
+          onClick={onGetDirections}
         >
           <Navigation className="mr-2 h-4 w-4" />
           Get Directions
         </Button>
-        <Button
-          variant="outline"
-          className="w-full border-purple-200 text-purple-700 hover:bg-purple-50"
-          onClick={() => setShowDetailsModal(true)}
-        >
-          <Eye className="mr-2 h-4 w-4" />
-          View Details
-        </Button>
-
-        {/* Location Details Modal */}
-        <LocationDetailsModal
-          isOpen={showDetailsModal}
-          onClose={() => setShowDetailsModal(false)}
-          locationName={name}
-          onGetDirections={onGetDirections}
-        />
       </CardFooter>
+
+      <LocationDetailsModal
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        locationName={name}
+        onGetDirections={onGetDirections}
+      />
     </Card>
   );
 };

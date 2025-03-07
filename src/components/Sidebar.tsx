@@ -140,14 +140,23 @@ const Sidebar = ({
                           )
                         : 1;
 
-                      // Dispatch a custom event for global distance filtering
-                      const distanceEvent = new CustomEvent(
-                        "filter:maxDistance",
-                        {
-                          detail: { maxDistance: distanceValue },
-                        },
-                      );
-                      window.dispatchEvent(distanceEvent);
+                      // For saved locations, dispatch a special event
+                      if (category.name === "Saved Locations") {
+                        const savedEvent = new CustomEvent(
+                          "showSavedLocations",
+                          {},
+                        );
+                        window.dispatchEvent(savedEvent);
+                      } else {
+                        // Dispatch a custom event for global distance filtering
+                        const distanceEvent = new CustomEvent(
+                          "filter:maxDistance",
+                          {
+                            detail: { maxDistance: distanceValue },
+                          },
+                        );
+                        window.dispatchEvent(distanceEvent);
+                      }
 
                       // Close the sidebar on mobile after selection (optional)
                       if (window.innerWidth < 768 && onClose) {

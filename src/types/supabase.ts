@@ -118,6 +118,62 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_locations: {
+        Row: {
+          address: string | null
+          age_range: string | null
+          amenities: string[] | null
+          created_at: string | null
+          id: string
+          image_url: string | null
+          lat: number
+          lng: number
+          location_id: string
+          name: string
+          rating: number | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          age_range?: string | null
+          amenities?: string[] | null
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          lat: number
+          lng: number
+          location_id: string
+          name: string
+          rating?: number | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          age_range?: string | null
+          amenities?: string[] | null
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          lat?: number
+          lng?: number
+          location_id?: string
+          name?: string
+          rating?: number | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_locations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       family_members_with_age_range: {

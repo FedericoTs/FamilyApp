@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useSavedLocations } from "@/hooks/useSavedLocations";
+import { useToast } from "./ui/use-toast";
+import { Toaster } from "./ui/toaster";
 import {
   MapPin,
   Layers,
@@ -181,13 +184,36 @@ const MapView = ({
   const [isLoadingPlaces, setIsLoadingPlaces] = useState(false);
   const [placesError, setPlacesError] = useState<string | null>(null);
 
-  // Initialize with default locations and fetch nearby places when user location is available
+  // Initialize with saved locations and update when locations or savedLocations change
+  const {
+    savedLocations,
+    getSavedLocationsForMap,
+    saveLocation,
+    removeSavedLocation,
+    isLocationSaved,
+  } = useSavedLocations();
+  const { toast } = useToast();
+
   useEffect(() => {
-    const initialBookmarks = locations.filter(
-      (location) => location.isBookmarked,
-    );
-    setBookmarkedLocations(initialBookmarks);
-  }, [locations]);
+    // Get saved locations from database
+    const savedLocationsForMap = getSavedLocationsForMap();
+
+    // Update the isBookmarked property of locations based on database state
+    const updatedLocations = locations.map((location) => ({
+      ...location,
+      isBookmarked: savedLocationsForMap.some(
+        (saved) => saved.id === location.id,
+      ),
+    }));
+
+    // Only update if there are actual changes to avoid infinite loops
+    if (JSON.stringify(locations) !== JSON.stringify(updatedLocations)) {
+      setLocations(updatedLocations);
+    }
+
+    // Set bookmarked locations directly from the database
+    setBookmarkedLocations(savedLocationsForMap);
+  }, [locations, savedLocations, getSavedLocationsForMap]);
 
   // Fetch nearby places when user location is available and Google Maps is loaded
   useEffect(() => {
@@ -250,6 +276,39 @@ const MapView = ({
       );
     };
   }, [userLocation]);
+
+  // Listen for saved locations filter
+  useEffect(() => {
+    const handleShowSavedLocations = () => {
+      // Get saved locations from the hook
+      const savedLocations = getSavedLocationsForMap();
+
+      if (savedLocations.length > 0) {
+        // Update the locations state with saved locations
+        setLocations(savedLocations);
+
+        // Center the map on the first saved location
+        if (mapRef.current && savedLocations[0]) {
+          mapRef.current.panTo(savedLocations[0].position);
+          setCenter(savedLocations[0].position);
+        }
+      } else {
+        // Show a message if no saved locations
+        setPlacesError(
+          "No saved locations found. Bookmark places to see them here.",
+        );
+      }
+    };
+
+    window.addEventListener("showSavedLocations", handleShowSavedLocations);
+
+    return () => {
+      window.removeEventListener(
+        "showSavedLocations",
+        handleShowSavedLocations,
+      );
+    };
+  }, [getSavedLocationsForMap]);
 
   // Listen for global max distance filter events
   useEffect(() => {
@@ -344,25 +403,67 @@ const MapView = ({
     setActiveMarker(null);
   };
 
-  const handleBookmarkToggle = (location: Location) => {
-    const updatedLocation = {
-      ...location,
-      isBookmarked: !location.isBookmarked,
-    };
+  const [savingLocationId, setSavingLocationId] = useState<string | null>(null);
 
-    // In a real app, you would update this in your database
-    // For now, we'll just update our local state
-    if (updatedLocation.isBookmarked) {
-      setBookmarkedLocations([...bookmarkedLocations, updatedLocation]);
-    } else {
-      setBookmarkedLocations(
-        bookmarkedLocations.filter((loc) => loc.id !== location.id),
+  const handleBookmarkToggle = async (location: Location) => {
+    if (savingLocationId === location.id) return; // Prevent multiple clicks on same location
+
+    const currentlySaved = isLocationSaved(location.id);
+    console.log(
+      `Toggling bookmark for ${location.name}, currently saved: ${currentlySaved}`,
+    );
+
+    setSavingLocationId(location.id);
+
+    try {
+      if (currentlySaved) {
+        // Remove location if currently saved
+        const { error } = await removeSavedLocation(location.id);
+        if (error) throw new Error(error);
+
+        toast({
+          title: "Location Removed",
+          description: `${location.name} has been removed from your saved places.`,
+          duration: 3000,
+        });
+      } else {
+        // Save location if not currently saved
+        const { error } = await saveLocation(location);
+        if (error) throw new Error(error);
+
+        toast({
+          title: "Location Saved",
+          description: `${location.name} has been added to your saved places.`,
+          duration: 3000,
+        });
+      }
+
+      // Force update the locations array to reflect the new bookmark status
+      // This ensures the UI updates immediately without waiting for the subscription
+      setLocations(
+        locations.map((loc) => {
+          if (loc.id === location.id) {
+            return {
+              ...loc,
+              isBookmarked: !currentlySaved,
+            };
+          }
+          return loc;
+        }),
       );
-    }
-
-    // If the selected location is being updated, update it too
-    if (selectedLocation && selectedLocation.id === location.id) {
-      setSelectedLocation(updatedLocation);
+    } catch (error) {
+      console.error(
+        `Error ${currentlySaved ? "removing" : "saving"} location:`,
+        error,
+      );
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to ${currentlySaved ? "remove" : "save"} ${location.name}. Please try again.`,
+        duration: 3000,
+      });
+    } finally {
+      setSavingLocationId(null);
     }
   };
 
@@ -601,6 +702,7 @@ const MapView = ({
 
   return (
     <div className="relative w-full h-full bg-gray-100">
+      <Toaster />
       {/* Google Map */}
       <div className="w-full h-full">
         <GoogleMap
