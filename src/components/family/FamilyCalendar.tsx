@@ -1,9 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { FamilyMember } from "@/types/profile";
+import { useToast } from "@/components/ui/use-toast";
+import { Toaster } from "@/components/ui/toaster";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   format,
   addDays,
@@ -13,6 +17,7 @@ import {
   eachDayOfInterval,
   isToday,
   isSameMonth,
+  parseISO,
 } from "date-fns";
 import {
   Dialog,
@@ -44,6 +49,7 @@ import {
   MapPin,
   Users,
   Calendar as CalendarLucide,
+  Loader2,
 } from "lucide-react";
 
 interface FamilyCalendarProps {
@@ -61,62 +67,29 @@ interface Event {
   attendees: string[];
 }
 
+interface DbEvent {
+  id: string;
+  profile_id: string;
+  title: string;
+  event_date: string;
+  event_time?: string;
+  location?: string;
+  description?: string;
+  category: "family" | "school" | "activity" | "appointment" | "other";
+  attendees: string[];
+  created_at: string;
+  updated_at: string;
+}
+
 const FamilyCalendar: React.FC<FamilyCalendarProps> = ({
   familyMembers = [],
 }) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [date, setDate] = useState<Date>(new Date());
-  const [events, setEvents] = useState<Event[]>([
-    {
-      id: "1",
-      title: "Family Dinner",
-      date: new Date(),
-      time: "6:30 PM",
-      location: "Home",
-      description: "Weekly family dinner",
-      category: "family",
-      attendees: ["Mom", "Dad", "Emma", "Jack"],
-    },
-    {
-      id: "2",
-      title: "Soccer Practice",
-      date: addDays(new Date(), 1),
-      time: "4:00 PM",
-      location: "Community Field",
-      description: "Emma's soccer practice",
-      category: "activity",
-      attendees: ["Emma", "Dad"],
-    },
-    {
-      id: "3",
-      title: "Parent-Teacher Conference",
-      date: addDays(new Date(), 3),
-      time: "3:30 PM",
-      location: "Lincoln Elementary School",
-      description: "Jack's quarterly parent-teacher conference",
-      category: "school",
-      attendees: ["Mom", "Dad", "Jack"],
-    },
-    {
-      id: "4",
-      title: "Dentist Appointment",
-      date: addDays(new Date(), 5),
-      time: "10:00 AM",
-      location: "Family Dental Care",
-      description: "Regular checkup for the kids",
-      category: "appointment",
-      attendees: ["Mom", "Emma", "Jack"],
-    },
-    {
-      id: "5",
-      title: "Movie Night",
-      date: addDays(new Date(), 7),
-      time: "7:00 PM",
-      location: "Living Room",
-      description: "Family movie night",
-      category: "family",
-      attendees: ["Mom", "Dad", "Emma", "Jack"],
-    },
-  ]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
@@ -147,46 +120,165 @@ const FamilyCalendar: React.FC<FamilyCalendarProps> = ({
   const monthEvents = getEventsForMonth(date);
   const selectedDateEvents = getEventsForDate(date);
 
-  const handleAddEvent = () => {
-    if (!newEvent.title || !newEvent.date) return;
+  // Load events from Supabase
+  useEffect(() => {
+    if (!user) return;
 
-    const event: Event = {
-      id: newEvent.id || Date.now().toString(),
-      title: newEvent.title,
-      date: newEvent.date,
-      time: newEvent.time,
-      location: newEvent.location,
-      description: newEvent.description,
-      category:
-        (newEvent.category as
-          | "family"
-          | "school"
-          | "activity"
-          | "appointment"
-          | "other") || "other",
-      attendees: newEvent.attendees || [],
+    const fetchEvents = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const { data, error } = await supabase
+          .from("family_events")
+          .select("*")
+          .eq("profile_id", user.id);
+
+        if (error) throw error;
+
+        // Convert database events to the Event format used by the component
+        const formattedEvents: Event[] = data.map((dbEvent: DbEvent) => ({
+          id: dbEvent.id,
+          title: dbEvent.title,
+          date: parseISO(dbEvent.event_date),
+          time: dbEvent.event_time,
+          location: dbEvent.location,
+          description: dbEvent.description,
+          category: dbEvent.category,
+          attendees: dbEvent.attendees || [],
+        }));
+
+        setEvents(formattedEvents);
+      } catch (err: any) {
+        console.error("Error fetching events:", err);
+        setError(err.message);
+        toast({
+          variant: "destructive",
+          title: "Error loading events",
+          description: "Failed to load your calendar events.",
+        });
+      } finally {
+        setLoading(false);
+      }
     };
 
-    if (newEvent.id) {
-      // Update existing event
-      setEvents(events.map((e) => (e.id === event.id ? event : e)));
-    } else {
-      // Add new event
-      setEvents([...events, event]);
-    }
+    fetchEvents();
 
-    setNewEvent({
-      date: new Date(),
-      category: "family",
-      attendees: [],
-    });
-    setIsAddEventOpen(false);
+    // Set up realtime subscription
+    const subscription = supabase
+      .channel("family_events_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "family_events",
+          filter: `profile_id=eq.${user.id}`,
+        },
+        fetchEvents,
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user, toast]);
+
+  const handleAddEvent = async () => {
+    if (!user || !newEvent.title || !newEvent.date) return;
+
+    setLoading(true);
+
+    try {
+      const eventData = {
+        profile_id: user.id,
+        title: newEvent.title,
+        event_date: newEvent.date.toISOString(),
+        event_time: newEvent.time,
+        location: newEvent.location,
+        description: newEvent.description,
+        category:
+          (newEvent.category as
+            | "family"
+            | "school"
+            | "activity"
+            | "appointment"
+            | "other") || "other",
+        attendees: newEvent.attendees || [],
+      };
+
+      if (newEvent.id) {
+        // Update existing event
+        const { error } = await supabase
+          .from("family_events")
+          .update(eventData)
+          .eq("id", newEvent.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Event updated",
+          description: "Your event has been updated successfully.",
+        });
+      } else {
+        // Add new event
+        const { error } = await supabase
+          .from("family_events")
+          .insert(eventData);
+
+        if (error) throw error;
+
+        toast({
+          title: "Event added",
+          description: "Your new event has been added to the calendar.",
+        });
+      }
+
+      // Reset form
+      setNewEvent({
+        date: new Date(),
+        category: "family",
+        attendees: [],
+      });
+      setIsAddEventOpen(false);
+    } catch (err: any) {
+      console.error("Error saving event:", err);
+      toast({
+        variant: "destructive",
+        title: "Error saving event",
+        description: err.message || "Failed to save your event.",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteEvent = (id: string) => {
-    setEvents(events.filter((event) => event.id !== id));
-    setSelectedEvent(null);
-    setIsViewEventOpen(false);
+  const handleDeleteEvent = async (id: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from("family_events")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setSelectedEvent(null);
+      setIsViewEventOpen(false);
+
+      toast({
+        title: "Event deleted",
+        description: "The event has been removed from your calendar.",
+      });
+    } catch (err: any) {
+      console.error("Error deleting event:", err);
+      toast({
+        variant: "destructive",
+        title: "Error deleting event",
+        description: err.message || "Failed to delete the event.",
+      });
+    }
   };
 
   const handleEditEvent = (event: Event) => {
@@ -232,6 +324,23 @@ const FamilyCalendar: React.FC<FamilyCalendarProps> = ({
 
   return (
     <div className="space-y-6">
+      <Toaster />
+      {loading && events.length === 0 && (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+          <span className="ml-2">Loading your calendar...</span>
+        </div>
+      )}
+
+      {error && (
+        <div
+          className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative"
+          role="alert"
+        >
+          <strong className="font-bold">Error!</strong>
+          <span className="block sm:inline"> {error}</span>
+        </div>
+      )}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h2 className="text-2xl font-bold text-purple-700 flex items-center">
           <CalendarLucide className="mr-2 h-6 w-6" />
@@ -370,8 +479,18 @@ const FamilyCalendar: React.FC<FamilyCalendarProps> = ({
               <Button
                 onClick={handleAddEvent}
                 className="bg-gradient-to-r from-pink-500 to-purple-600"
+                disabled={loading}
               >
-                {newEvent.id ? "Update Event" : "Add Event"}
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {newEvent.id ? "Updating..." : "Adding..."}
+                  </>
+                ) : newEvent.id ? (
+                  "Update Event"
+                ) : (
+                  "Add Event"
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>

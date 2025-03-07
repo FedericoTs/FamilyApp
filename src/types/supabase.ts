@@ -9,6 +9,56 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      family_events: {
+        Row: {
+          attendees: string[] | null
+          category: string
+          created_at: string | null
+          description: string | null
+          event_date: string
+          event_time: string | null
+          id: string
+          location: string | null
+          profile_id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          attendees?: string[] | null
+          category: string
+          created_at?: string | null
+          description?: string | null
+          event_date: string
+          event_time?: string | null
+          id?: string
+          location?: string | null
+          profile_id: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          attendees?: string[] | null
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          event_date?: string
+          event_time?: string | null
+          id?: string
+          location?: string | null
+          profile_id?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_events_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       family_members: {
         Row: {
           age_range: string | null
