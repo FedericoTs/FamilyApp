@@ -9,6 +9,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import {
+  createEventReminder,
+  createAppointmentReminder,
+} from "@/services/notificationService";
+import {
   format,
   addDays,
   isSameDay,
@@ -207,6 +211,8 @@ const FamilyCalendar: React.FC<FamilyCalendarProps> = ({
         attendees: newEvent.attendees || [],
       };
 
+      let eventId = newEvent.id;
+
       if (newEvent.id) {
         // Update existing event
         const { error } = await supabase
@@ -222,16 +228,51 @@ const FamilyCalendar: React.FC<FamilyCalendarProps> = ({
         });
       } else {
         // Add new event
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("family_events")
-          .insert(eventData);
+          .insert(eventData)
+          .select();
 
         if (error) throw error;
+
+        // Get the new event ID
+        if (data && data.length > 0) {
+          eventId = data[0].id;
+        }
 
         toast({
           title: "Event added",
           description: "Your new event has been added to the calendar.",
         });
+      }
+
+      // Create notifications based on event type and date
+      if (eventId) {
+        const eventCategory = newEvent.category as string;
+        const eventDate = newEvent.date;
+
+        // Create appropriate notification based on event category
+        if (eventCategory === "appointment") {
+          // For appointments, create an urgent reminder
+          await createAppointmentReminder(
+            user.id,
+            eventId,
+            newEvent.title || "",
+            eventDate,
+            newEvent.time,
+            newEvent.location,
+          );
+        } else {
+          // For other events, create a standard reminder
+          await createEventReminder(
+            user.id,
+            eventId,
+            newEvent.title || "",
+            eventDate,
+            newEvent.time,
+            eventCategory,
+          );
+        }
       }
 
       // Reset form
