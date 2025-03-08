@@ -21,12 +21,20 @@ export interface Expense {
 // Fetch all budgets for the current user
 export const fetchBudgets = async () => {
   try {
+    // Get the current user's ID
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("User not authenticated");
+
     const { data, error } = await supabase
       .from("family_budgets")
       .select("*")
+      .eq("profile_id", user.id)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
+    console.log("Fetched budgets:", data);
     return { data, error: null };
   } catch (error: any) {
     console.error("Error fetching budgets:", error);
@@ -101,12 +109,20 @@ export const deleteBudget = async (id: string) => {
 // Fetch all expenses for the current user
 export const fetchExpenses = async () => {
   try {
+    // Get the current user's ID
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("User not authenticated");
+
     const { data, error } = await supabase
       .from("family_expenses")
       .select("*")
+      .eq("profile_id", user.id)
       .order("date", { ascending: false });
 
     if (error) throw error;
+    console.log("Fetched expenses:", data);
     return { data, error: null };
   } catch (error: any) {
     console.error("Error fetching expenses:", error);
@@ -238,9 +254,16 @@ export const deleteExpense = async (id: string) => {
 // Get budget summary statistics
 export const getBudgetSummary = async () => {
   try {
+    // Get the current user's ID
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("User not authenticated");
+
     const { data, error } = await supabase
       .from("family_budgets")
       .select("amount, spent, category")
+      .eq("profile_id", user.id)
       .order("category");
 
     if (error) throw error;
@@ -263,13 +286,17 @@ export const getBudgetSummary = async () => {
       {} as Record<string, { amount: number; spent: number }>,
     );
 
+    const summary = {
+      totalBudget,
+      totalSpent,
+      totalRemaining,
+      categoryTotals,
+    };
+
+    console.log("Budget summary calculated:", summary);
+
     return {
-      data: {
-        totalBudget,
-        totalSpent,
-        totalRemaining,
-        categoryTotals,
-      },
+      data: summary,
       error: null,
     };
   } catch (error: any) {

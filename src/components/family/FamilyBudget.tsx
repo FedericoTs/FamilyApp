@@ -38,6 +38,13 @@ import {
 } from "lucide-react";
 import { Budget, Expense } from "@/services/budgetService";
 
+// Import the new visualization components
+import BudgetChart from "./BudgetChart";
+import ExpenseTimeline from "./ExpenseTimeline";
+import BudgetSummaryCards from "./BudgetSummaryCards";
+import BudgetExportButton from "./BudgetExportButton";
+import BudgetImportButton from "./BudgetImportButton";
+
 const FamilyBudget: React.FC = () => {
   const { toast } = useToast();
   const {
@@ -191,28 +198,103 @@ const FamilyBudget: React.FC = () => {
 
   // Calculate totals from summary or directly from budgets if summary not available
   const totalBudget =
-    summary?.totalBudget ||
-    budgets.reduce((sum, budget) => sum + budget.amount, 0);
+    summary?.totalBudget !== undefined && summary?.totalBudget !== null
+      ? summary.totalBudget
+      : budgets.reduce((sum, budget) => sum + (Number(budget.amount) || 0), 0);
   const totalSpent =
-    summary?.totalSpent ||
-    budgets.reduce((sum, budget) => sum + budget.spent, 0);
+    summary?.totalSpent !== undefined && summary?.totalSpent !== null
+      ? summary.totalSpent
+      : budgets.reduce((sum, budget) => sum + (Number(budget.spent) || 0), 0);
   const totalRemaining = totalBudget - totalSpent;
+
+  // Ensure we have valid data for visualization
+  useEffect(() => {
+    console.log("Calculated budget totals:", {
+      totalBudget,
+      totalSpent,
+      totalRemaining,
+      budgetsLength: budgets.length,
+      summaryData: summary,
+    });
+
+    // Add validation checks
+    if (isNaN(totalBudget)) {
+      console.error("Invalid totalBudget (NaN):", {
+        summary: summary?.totalBudget,
+        calculatedFromBudgets: budgets.reduce(
+          (sum, budget) => sum + (Number(budget.amount) || 0),
+          0,
+        ),
+        budgets,
+      });
+    }
+    if (isNaN(totalSpent)) {
+      console.error("Invalid totalSpent (NaN):", {
+        summary: summary?.totalSpent,
+        calculatedFromBudgets: budgets.reduce(
+          (sum, budget) => sum + (Number(budget.spent) || 0),
+          0,
+        ),
+        budgets,
+      });
+    }
+  }, [totalBudget, totalSpent, totalRemaining, budgets, summary]);
 
   // Use category totals from summary or calculate from budgets
   const categoryTotals =
     summary?.categoryTotals ||
     budgets.reduce(
       (acc, budget) => {
-        if (!acc[budget.category]) {
-          acc[budget.category] = { amount: 0, spent: 0 };
+        const category = budget.category || "uncategorized";
+        if (!acc[category]) {
+          acc[category] = { amount: 0, spent: 0 };
         }
-        acc[budget.category].amount += budget.amount;
-        acc[budget.category].spent += budget.spent;
+        acc[category].amount += Number(budget.amount) || 0;
+        acc[category].spent += Number(budget.spent) || 0;
         return acc;
       },
       {} as Record<string, { amount: number; spent: number }>,
     );
 
+  // Add validation for categoryTotals
+  useEffect(() => {
+    console.log("Category totals for visualization:", {
+      categoryTotals,
+      fromSummary: !!summary?.categoryTotals,
+      calculatedFromBudgets: !summary?.categoryTotals,
+      budgetsLength: budgets.length,
+    });
+
+    // Ensure we have at least one category for visualization
+    if (Object.keys(categoryTotals).length === 0) {
+      console.warn("No category totals available for visualization");
+    }
+  }, [categoryTotals, summary, budgets]);
+
+  // Log the data being used for visualization
+  useEffect(() => {
+    console.log("FamilyBudget component data:", {
+      budgets,
+      expenses,
+      summary,
+      calculatedTotals: {
+        totalBudget,
+        totalSpent,
+        totalRemaining,
+        categoryTotals,
+      },
+    });
+  }, [
+    budgets,
+    expenses,
+    summary,
+    totalBudget,
+    totalSpent,
+    totalRemaining,
+    categoryTotals,
+  ]);
+
+  // Show loading state only if we're actually loading and don't have any data yet
   if (loading && !budgets.length && !expenses.length) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -220,6 +302,13 @@ const FamilyBudget: React.FC = () => {
         <span>Loading budget data...</span>
       </div>
     );
+  }
+
+  // Force demo data if we have no data after loading
+  if (!loading && !budgets.length && !expenses.length) {
+    console.log("No budget data found, using demo data for visualization");
+    // This will ensure the visualization components have something to display
+    // The actual demo data is handled in each component's fallback logic
   }
 
   return (
@@ -238,17 +327,36 @@ const FamilyBudget: React.FC = () => {
       )}
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="w-full sm:w-auto"
-        >
-          <TabsList className="grid grid-cols-3 w-full">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="expenses">Expenses</TabsTrigger>
-            <TabsTrigger value="budgets">Budgets</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full sm:w-auto"
+          >
+            <TabsList className="grid grid-cols-3 w-full">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="expenses">Expenses</TabsTrigger>
+              <TabsTrigger value="budgets">Budgets</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <div className="flex gap-2 ml-auto">
+            <BudgetExportButton
+              budgets={budgets}
+              expenses={expenses}
+              summary={summary}
+            />
+            <BudgetImportButton
+              onImportComplete={() => {
+                // This will trigger a refresh of the data
+                toast({
+                  title: "Data Refreshed",
+                  description: "Your budget data has been updated.",
+                });
+              }}
+            />
+          </div>
+        </div>
 
         <div className="flex gap-2 w-full sm:w-auto">
           <Dialog open={isAddExpenseOpen} onOpenChange={setIsAddExpenseOpen}>
@@ -504,155 +612,207 @@ const FamilyBudget: React.FC = () => {
       </div>
 
       <TabsContent value="overview" className="mt-0 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Import and use the new BudgetSummaryCards component */}
+        <BudgetSummaryCards
+          totalBudget={totalBudget}
+          totalSpent={totalSpent}
+          totalRemaining={totalRemaining}
+        />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Budget visualization with pie chart */}
+          <BudgetChart
+            categoryTotals={categoryTotals}
+            chartType="pie"
+            title="Budget Allocation"
+          />
+
+          {/* Expense timeline visualization */}
+          <ExpenseTimeline
+            expenses={expenses}
+            period="month"
+            title="Monthly Expense Trend"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Budget visualization with bar chart */}
+          <BudgetChart
+            categoryTotals={categoryTotals}
+            chartType="bar"
+            title="Budget vs. Spending"
+          />
+
+          {/* Recent expenses list */}
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-medium text-gray-500">
-                Total Budget
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <BarChart3 className="mr-2 h-5 w-5 text-pink-600" />
+                <span>Recent Expenses</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-purple-700">
-                ${totalBudget.toFixed(2)}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-medium text-gray-500">
-                Total Spent
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-pink-600">
-                ${totalSpent.toFixed(2)}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-medium text-gray-500">
-                Remaining
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-green-600">
-                ${totalRemaining.toFixed(2)}
-              </div>
+              {expenses.length === 0 ? (
+                <div className="text-center py-6 text-gray-500">
+                  <p>No expenses recorded yet.</p>
+                  <Button
+                    variant="link"
+                    className="text-purple-600"
+                    onClick={() => setIsAddExpenseOpen(true)}
+                  >
+                    Add your first expense
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {expenses.slice(0, 5).map((expense) => (
+                    <div
+                      key={expense.id}
+                      className="flex justify-between items-center border-b pb-3 last:border-0 last:pb-0"
+                    >
+                      <div>
+                        <h4 className="font-medium">{expense.title}</h4>
+                        <div className="flex items-center mt-1">
+                          <CalendarIcon className="h-3.5 w-3.5 text-gray-500 mr-1" />
+                          <span className="text-xs text-gray-500">
+                            {format(new Date(expense.date), "MMM d, yyyy")}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`px-2 py-0.5 rounded-full text-xs ${getCategoryColor(expense.category)}`}
+                        >
+                          <span className="capitalize">{expense.category}</span>
+                        </div>
+                        <span className="font-medium">
+                          ${expense.amount.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {expenses.length > 5 && (
+                <Button
+                  variant="link"
+                  className="w-full mt-4 text-purple-600"
+                  onClick={() => setActiveTab("expenses")}
+                >
+                  View All Expenses
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>
 
+        {/* Budget and Expenses Summary Table */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
-              <PieChart className="mr-2 h-5 w-5 text-purple-600" />
-              <span>Budget Breakdown</span>
+              <DollarSign className="mr-2 h-5 w-5 text-purple-600" />
+              <span>Budget and Expenses Summary</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {Object.keys(categoryTotals).length === 0 ? (
-              <div className="text-center py-6 text-gray-500">
-                <p>No budget categories defined yet.</p>
-                <Button
-                  variant="link"
-                  className="text-purple-600"
-                  onClick={() => setIsAddBudgetOpen(true)}
-                >
-                  Add your first budget
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {Object.entries(categoryTotals).map(
-                  ([category, { amount, spent }]) => {
-                    const percentage = amount > 0 ? (spent / amount) * 100 : 0;
-                    return (
-                      <div key={category} className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center">
-                            <div
-                              className={`w-3 h-3 rounded-full mr-2 ${getCategoryColor(category).split(" ")[0]}`}
-                            ></div>
-                            <span className="capitalize">{category}</span>
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            ${spent.toFixed(2)} / ${amount.toFixed(2)}
-                          </div>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div
-                            className={`h-2.5 rounded-full ${percentage > 90 ? "bg-red-600" : "bg-gradient-to-r from-pink-500 to-purple-600"}`}
-                            style={{ width: `${Math.min(percentage, 100)}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    );
-                  },
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-purple-50">
+                    <th className="border px-4 py-2 text-left">Category</th>
+                    <th className="border px-4 py-2 text-right">Budget</th>
+                    <th className="border px-4 py-2 text-right">Spent</th>
+                    <th className="border px-4 py-2 text-right">Remaining</th>
+                    <th className="border px-4 py-2 text-right">% Used</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(categoryTotals).map(
+                    ([category, { amount, spent }], index) => {
+                      const remaining = amount - spent;
+                      const percentUsed =
+                        amount > 0 ? (spent / amount) * 100 : 0;
+                      const isOverBudget = remaining < 0;
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <BarChart3 className="mr-2 h-5 w-5 text-pink-600" />
-              <span>Recent Expenses</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {expenses.length === 0 ? (
-              <div className="text-center py-6 text-gray-500">
-                <p>No expenses recorded yet.</p>
-                <Button
-                  variant="link"
-                  className="text-purple-600"
-                  onClick={() => setIsAddExpenseOpen(true)}
-                >
-                  Add your first expense
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {expenses.slice(0, 5).map((expense) => (
-                  <div
-                    key={expense.id}
-                    className="flex justify-between items-center border-b pb-3 last:border-0 last:pb-0"
-                  >
-                    <div>
-                      <h4 className="font-medium">{expense.title}</h4>
-                      <div className="flex items-center mt-1">
-                        <CalendarIcon className="h-3.5 w-3.5 text-gray-500 mr-1" />
-                        <span className="text-xs text-gray-500">
-                          {format(new Date(expense.date), "MMM d, yyyy")}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`px-2 py-0.5 rounded-full text-xs ${getCategoryColor(expense.category)}`}
-                      >
-                        <span className="capitalize">{expense.category}</span>
-                      </div>
-                      <span className="font-medium">
-                        ${expense.amount.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {expenses.length > 5 && (
-              <Button
-                variant="link"
-                className="w-full mt-4 text-purple-600"
-                onClick={() => setActiveTab("expenses")}
-              >
-                View All Expenses
-              </Button>
-            )}
+                      return (
+                        <tr
+                          key={index}
+                          className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"} ${isOverBudget ? "bg-red-50" : ""}`}
+                        >
+                          <td className="border px-4 py-2">
+                            <div className="flex items-center">
+                              <div
+                                className="w-3 h-3 rounded-full mr-2"
+                                style={{
+                                  backgroundColor: getCategoryColor(
+                                    category,
+                                    index,
+                                  )
+                                    .split(" ")[0]
+                                    .replace("bg-", "--"),
+                                }}
+                              />
+                              <span className="capitalize">{category}</span>
+                            </div>
+                          </td>
+                          <td className="border px-4 py-2 text-right font-medium">
+                            ${amount.toFixed(2)}
+                          </td>
+                          <td className="border px-4 py-2 text-right">
+                            ${spent.toFixed(2)}
+                          </td>
+                          <td
+                            className={`border px-4 py-2 text-right font-medium ${isOverBudget ? "text-red-600" : "text-green-600"}`}
+                          >
+                            ${Math.abs(remaining).toFixed(2)}
+                            {isOverBudget ? " over" : ""}
+                          </td>
+                          <td className="border px-4 py-2 text-right">
+                            <div className="flex items-center justify-end">
+                              <span
+                                className={
+                                  percentUsed > 90
+                                    ? "text-red-600 font-medium"
+                                    : ""
+                                }
+                              >
+                                {percentUsed.toFixed(1)}%
+                              </span>
+                              <div className="ml-2 w-16 bg-gray-200 rounded-full h-2">
+                                <div
+                                  className={`h-2 rounded-full ${percentUsed > 90 ? "bg-red-500" : "bg-gradient-to-r from-pink-500 to-purple-600"}`}
+                                  style={{
+                                    width: `${Math.min(percentUsed, 100)}%`,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    },
+                  )}
+                  <tr className="bg-purple-100 font-bold">
+                    <td className="border px-4 py-2">Total</td>
+                    <td className="border px-4 py-2 text-right">
+                      ${totalBudget.toFixed(2)}
+                    </td>
+                    <td className="border px-4 py-2 text-right">
+                      ${totalSpent.toFixed(2)}
+                    </td>
+                    <td className="border px-4 py-2 text-right">
+                      ${totalRemaining.toFixed(2)}
+                    </td>
+                    <td className="border px-4 py-2 text-right">
+                      {totalBudget > 0
+                        ? ((totalSpent / totalBudget) * 100).toFixed(1)
+                        : 0}
+                      %
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
       </TabsContent>

@@ -33,7 +33,164 @@ export function useBudget() {
 
   // Load budgets and expenses
   useEffect(() => {
-    if (!user) return;
+    // For storyboard/demo purposes, if no user is logged in, use demo data
+    if (!user) {
+      console.log("No user found, using demo data");
+      // Set demo data for budgets
+      const demoBudgets = [
+        {
+          id: "demo-1",
+          title: "Groceries",
+          amount: 500,
+          spent: 320,
+          category: "groceries",
+          period: "monthly",
+        },
+        {
+          id: "demo-2",
+          title: "Entertainment",
+          amount: 200,
+          spent: 150,
+          category: "entertainment",
+          period: "monthly",
+        },
+        {
+          id: "demo-3",
+          title: "Activities",
+          amount: 300,
+          spent: 180,
+          category: "activities",
+          period: "monthly",
+        },
+        {
+          id: "demo-4",
+          title: "Education",
+          amount: 400,
+          spent: 250,
+          category: "education",
+          period: "monthly",
+        },
+        {
+          id: "demo-5",
+          title: "Travel",
+          amount: 600,
+          spent: 100,
+          category: "travel",
+          period: "monthly",
+        },
+      ];
+
+      // Set demo data for expenses
+      const demoExpenses = [
+        {
+          id: "exp-1",
+          title: "Weekly Grocery Shopping",
+          amount: 120,
+          date: new Date(2023, 5, 1),
+          category: "groceries",
+          notes: "Regular weekly shopping",
+        },
+        {
+          id: "exp-2",
+          title: "Movie Tickets",
+          amount: 45,
+          date: new Date(2023, 5, 3),
+          category: "entertainment",
+          notes: "Family movie night",
+        },
+        {
+          id: "exp-3",
+          title: "Swimming Lessons",
+          amount: 60,
+          date: new Date(2023, 5, 8),
+          category: "activities",
+          notes: "Monthly swimming class",
+        },
+        {
+          id: "exp-4",
+          title: "School Supplies",
+          amount: 85,
+          date: new Date(2023, 5, 5),
+          category: "education",
+          notes: "New semester supplies",
+        },
+        {
+          id: "exp-5",
+          title: "Weekend Getaway",
+          amount: 100,
+          date: new Date(2023, 5, 12),
+          category: "travel",
+          notes: "Day trip to the beach",
+        },
+        {
+          id: "exp-6",
+          title: "Organic Produce",
+          amount: 75,
+          date: new Date(2023, 5, 15),
+          category: "groceries",
+          notes: "Farmers market shopping",
+        },
+        {
+          id: "exp-7",
+          title: "Concert Tickets",
+          amount: 105,
+          date: new Date(2023, 5, 18),
+          category: "entertainment",
+          notes: "Live music event",
+        },
+        {
+          id: "exp-8",
+          title: "Textbooks",
+          amount: 165,
+          date: new Date(2023, 5, 22),
+          category: "education",
+          notes: "Required reading materials",
+        },
+      ];
+
+      // Calculate summary from demo data
+      const totalBudget = demoBudgets.reduce(
+        (sum, budget) => sum + budget.amount,
+        0,
+      );
+      const totalSpent = demoBudgets.reduce(
+        (sum, budget) => sum + budget.spent,
+        0,
+      );
+      const categoryTotals = demoBudgets.reduce(
+        (acc, budget) => {
+          if (!acc[budget.category]) {
+            acc[budget.category] = { amount: 0, spent: 0 };
+          }
+          acc[budget.category].amount += budget.amount;
+          acc[budget.category].spent += budget.spent;
+          return acc;
+        },
+        {} as Record<string, { amount: number; spent: number }>,
+      );
+
+      // Set the demo data to state
+      setBudgets(demoBudgets);
+      setExpenses(demoExpenses);
+      setSummary({
+        totalBudget,
+        totalSpent,
+        totalRemaining: totalBudget - totalSpent,
+        categoryTotals,
+      });
+      setLoading(false);
+      console.log("Demo data loaded successfully", {
+        budgets: demoBudgets,
+        expenses: demoExpenses,
+        summary: {
+          totalBudget,
+          totalSpent,
+          totalRemaining: totalBudget - totalSpent,
+          categoryTotals,
+        },
+      });
+      return;
+    }
 
     let isMounted = true;
     const loadBudgetData = async () => {
@@ -63,6 +220,12 @@ export function useBudget() {
         const summaryResult = await getBudgetSummary();
         if (summaryResult.error) throw new Error(summaryResult.error);
         if (isMounted) setSummary(summaryResult.data);
+
+        console.log("Loaded budget data:", {
+          budgets: budgetsResult.data,
+          expenses: formattedExpenses,
+          summary: summaryResult.data,
+        });
       } catch (err: any) {
         console.error("Error loading budget data:", err);
         if (isMounted) {
