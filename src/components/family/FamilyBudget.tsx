@@ -1,8 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
+import { Toaster } from "@/components/ui/toaster";
+import { useBudget } from "@/hooks/useBudget";
 import {
   Select,
   SelectContent,
@@ -30,32 +33,30 @@ import {
   PieChart,
   BarChart3,
   Calendar as CalendarIcon,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
-
-interface Expense {
-  id: string;
-  title: string;
-  amount: number;
-  date: Date;
-  category: string;
-  notes?: string;
-}
-
-interface Budget {
-  id: string;
-  title: string;
-  amount: number;
-  spent: number;
-  category: string;
-  period: "monthly" | "yearly" | "one-time";
-}
+import { Budget, Expense } from "@/services/budgetService";
 
 const FamilyBudget: React.FC = () => {
+  const { toast } = useToast();
+  const {
+    budgets,
+    expenses,
+    summary,
+    loading,
+    error,
+    addBudget,
+    updateBudget,
+    deleteBudget,
+    addExpense,
+    updateExpense,
+    deleteExpense,
+  } = useBudget();
+
   const [activeTab, setActiveTab] = useState("overview");
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [isAddBudgetOpen, setIsAddBudgetOpen] = useState(false);
-  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
-  const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [newExpense, setNewExpense] = useState<Partial<Expense>>({
     date: new Date(),
     category: "groceries",
@@ -64,201 +65,103 @@ const FamilyBudget: React.FC = () => {
     category: "groceries",
     period: "monthly",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Sample expenses data
-  const [expenses, setExpenses] = useState<Expense[]>([
-    {
-      id: "1",
-      title: "Weekly Grocery Shopping",
-      amount: 120.5,
-      date: new Date(),
-      category: "groceries",
-      notes: "Bought extra for weekend family dinner",
-    },
-    {
-      id: "2",
-      title: "School Supplies",
-      amount: 45.75,
-      date: new Date(new Date().setDate(new Date().getDate() - 3)),
-      category: "education",
-      notes: "Notebooks, pens, and art supplies",
-    },
-    {
-      id: "3",
-      title: "Family Movie Night",
-      amount: 35.0,
-      date: new Date(new Date().setDate(new Date().getDate() - 5)),
-      category: "entertainment",
-      notes: "Pizza and movie rental",
-    },
-    {
-      id: "4",
-      title: "Soccer Practice Fee",
-      amount: 60.0,
-      date: new Date(new Date().setDate(new Date().getDate() - 7)),
-      category: "activities",
-    },
-  ]);
-
-  // Sample budgets data
-  const [budgets, setBudgets] = useState<Budget[]>([
-    {
-      id: "1",
-      title: "Groceries",
-      amount: 500,
-      spent: 320,
-      category: "groceries",
-      period: "monthly",
-    },
-    {
-      id: "2",
-      title: "Entertainment",
-      amount: 200,
-      spent: 85,
-      category: "entertainment",
-      period: "monthly",
-    },
-    {
-      id: "3",
-      title: "Kids Activities",
-      amount: 300,
-      spent: 180,
-      category: "activities",
-      period: "monthly",
-    },
-    {
-      id: "4",
-      title: "Education",
-      amount: 250,
-      spent: 120,
-      category: "education",
-      period: "monthly",
-    },
-    {
-      id: "5",
-      title: "Family Vacation",
-      amount: 2000,
-      spent: 500,
-      category: "travel",
-      period: "yearly",
-    },
-  ]);
-
-  const handleAddExpense = () => {
+  const handleAddExpense = async () => {
     if (!newExpense.title || !newExpense.amount || !newExpense.date) return;
 
-    const expense: Expense = {
-      id: newExpense.id || Date.now().toString(),
-      title: newExpense.title,
-      amount: Number(newExpense.amount),
-      date: newExpense.date,
-      category: newExpense.category || "groceries",
-      notes: newExpense.notes,
-    };
+    setIsSubmitting(true);
 
-    if (newExpense.id) {
-      // Update existing expense
-      setExpenses(expenses.map((e) => (e.id === expense.id ? expense : e)));
+    try {
+      const expense: Omit<Expense, "id"> = {
+        title: newExpense.title,
+        amount: Number(newExpense.amount),
+        date: newExpense.date,
+        category: newExpense.category || "groceries",
+        notes: newExpense.notes,
+      };
 
-      // Update the budget spent amount if category matches
-      const matchingBudget = budgets.find(
-        (b) => b.category === expense.category,
-      );
-      if (matchingBudget) {
-        const oldExpense = expenses.find((e) => e.id === expense.id);
-        if (oldExpense) {
-          const spentDifference = expense.amount - oldExpense.amount;
-          setBudgets(
-            budgets.map((b) =>
-              b.id === matchingBudget.id
-                ? { ...b, spent: Math.max(0, b.spent + spentDifference) }
-                : b,
-            ),
-          );
-        }
+      console.log("Submitting expense:", expense);
+
+      if (newExpense.id) {
+        // Update existing expense
+        const result = await updateExpense(newExpense.id, expense);
+        if (result.error) throw new Error(result.error);
+      } else {
+        // Add new expense
+        const result = await addExpense(expense);
+        if (result.error) throw new Error(result.error);
       }
-    } else {
-      // Add new expense
-      setExpenses([...expenses, expense]);
 
-      // Update the budget spent amount if category matches
-      const matchingBudget = budgets.find(
-        (b) => b.category === expense.category,
-      );
-      if (matchingBudget) {
-        setBudgets(
-          budgets.map((b) =>
-            b.id === matchingBudget.id
-              ? { ...b, spent: b.spent + expense.amount }
-              : b,
-          ),
-        );
-      }
+      setNewExpense({
+        date: new Date(),
+        category: "groceries",
+      });
+      setIsAddExpenseOpen(false);
+    } catch (err: any) {
+      console.error("Error in handleAddExpense:", err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message || "Failed to save expense",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setNewExpense({
-      date: new Date(),
-      category: "groceries",
-    });
-    setIsAddExpenseOpen(false);
   };
 
-  const handleAddBudget = () => {
+  const handleAddBudget = async () => {
     if (!newBudget.title || !newBudget.amount) return;
 
-    const budget: Budget = {
-      id: newBudget.id || Date.now().toString(),
-      title: newBudget.title,
-      amount: Number(newBudget.amount),
-      spent: newBudget.spent || 0,
-      category: newBudget.category || "groceries",
-      period: newBudget.period || "monthly",
-    };
+    setIsSubmitting(true);
 
-    if (newBudget.id) {
-      // Update existing budget
-      setBudgets(budgets.map((b) => (b.id === budget.id ? budget : b)));
-    } else {
-      // Add new budget
-      setBudgets([...budgets, budget]);
-    }
-
-    setNewBudget({
-      category: "groceries",
-      period: "monthly",
-    });
-    setIsAddBudgetOpen(false);
-  };
-
-  const handleDeleteExpense = (id: string) => {
-    const expenseToDelete = expenses.find((e) => e.id === id);
-    if (expenseToDelete) {
-      // Update the budget spent amount if category matches
-      const matchingBudget = budgets.find(
-        (b) => b.category === expenseToDelete.category,
-      );
-      if (matchingBudget) {
-        setBudgets(
-          budgets.map((b) =>
-            b.id === matchingBudget.id
-              ? { ...b, spent: Math.max(0, b.spent - expenseToDelete.amount) }
-              : b,
-          ),
-        );
+    try {
+      if (newBudget.id) {
+        // Update existing budget
+        await updateBudget(newBudget.id, newBudget);
+      } else {
+        // Add new budget
+        await addBudget({
+          title: newBudget.title,
+          amount: Number(newBudget.amount),
+          category: newBudget.category || "groceries",
+          period: newBudget.period || "monthly",
+        });
       }
-    }
 
-    setExpenses(expenses.filter((expense) => expense.id !== id));
-    setSelectedExpense(null);
+      setNewBudget({
+        category: "groceries",
+        period: "monthly",
+      });
+      setIsAddBudgetOpen(false);
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message || "Failed to save budget",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDeleteBudget = (id: string) => {
-    setBudgets(budgets.filter((budget) => budget.id !== id));
-    setSelectedBudget(null);
+  const handleDeleteExpense = async (id: string) => {
+    if (confirm("Are you sure you want to delete this expense?")) {
+      await deleteExpense(id);
+    }
+  };
+
+  const handleDeleteBudget = async (id: string) => {
+    if (confirm("Are you sure you want to delete this budget?")) {
+      await deleteBudget(id);
+    }
   };
 
   const handleEditExpense = (expense: Expense) => {
-    setNewExpense(expense);
+    setNewExpense({
+      ...expense,
+      date: new Date(expense.date), // Ensure date is a Date object
+    });
     setIsAddExpenseOpen(true);
   };
 
@@ -286,26 +189,54 @@ const FamilyBudget: React.FC = () => {
     }
   };
 
-  // Calculate total budget and spent
-  const totalBudget = budgets.reduce((sum, budget) => sum + budget.amount, 0);
-  const totalSpent = budgets.reduce((sum, budget) => sum + budget.spent, 0);
+  // Calculate totals from summary or directly from budgets if summary not available
+  const totalBudget =
+    summary?.totalBudget ||
+    budgets.reduce((sum, budget) => sum + budget.amount, 0);
+  const totalSpent =
+    summary?.totalSpent ||
+    budgets.reduce((sum, budget) => sum + budget.spent, 0);
   const totalRemaining = totalBudget - totalSpent;
 
-  // Calculate category totals for the chart
-  const categoryTotals = budgets.reduce(
-    (acc, budget) => {
-      if (!acc[budget.category]) {
-        acc[budget.category] = { amount: 0, spent: 0 };
-      }
-      acc[budget.category].amount += budget.amount;
-      acc[budget.category].spent += budget.spent;
-      return acc;
-    },
-    {} as Record<string, { amount: number; spent: number }>,
-  );
+  // Use category totals from summary or calculate from budgets
+  const categoryTotals =
+    summary?.categoryTotals ||
+    budgets.reduce(
+      (acc, budget) => {
+        if (!acc[budget.category]) {
+          acc[budget.category] = { amount: 0, spent: 0 };
+        }
+        acc[budget.category].amount += budget.amount;
+        acc[budget.category].spent += budget.spent;
+        return acc;
+      },
+      {} as Record<string, { amount: number; spent: number }>,
+    );
+
+  if (loading && !budgets.length && !expenses.length) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-purple-600 mr-2" />
+        <span>Loading budget data...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      <Toaster />
+      {error && (
+        <div
+          className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg"
+          role="alert"
+        >
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            <span>{error}</span>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <Tabs
           value={activeTab}
@@ -413,13 +344,25 @@ const FamilyBudget: React.FC = () => {
               </div>
               <DialogFooter>
                 <DialogClose asChild>
-                  <Button variant="outline">Cancel</Button>
+                  <Button variant="outline" disabled={isSubmitting}>
+                    Cancel
+                  </Button>
                 </DialogClose>
                 <Button
                   onClick={handleAddExpense}
                   className="bg-gradient-to-r from-pink-500 to-purple-600"
+                  disabled={isSubmitting}
                 >
-                  {newExpense.id ? "Update Expense" : "Add Expense"}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {newExpense.id ? "Updating..." : "Adding..."}
+                    </>
+                  ) : newExpense.id ? (
+                    "Update Expense"
+                  ) : (
+                    "Add Expense"
+                  )}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -534,13 +477,25 @@ const FamilyBudget: React.FC = () => {
               </div>
               <DialogFooter>
                 <DialogClose asChild>
-                  <Button variant="outline">Cancel</Button>
+                  <Button variant="outline" disabled={isSubmitting}>
+                    Cancel
+                  </Button>
                 </DialogClose>
                 <Button
                   onClick={handleAddBudget}
                   className="bg-gradient-to-r from-pink-500 to-purple-600"
+                  disabled={isSubmitting}
                 >
-                  {newBudget.id ? "Update Budget" : "Add Budget"}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {newBudget.id ? "Updating..." : "Adding..."}
+                    </>
+                  ) : newBudget.id ? (
+                    "Update Budget"
+                  ) : (
+                    "Add Budget"
+                  )}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -596,34 +551,47 @@ const FamilyBudget: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
-              {Object.entries(categoryTotals).map(
-                ([category, { amount, spent }]) => {
-                  const percentage = amount > 0 ? (spent / amount) * 100 : 0;
-                  return (
-                    <div key={category} className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center">
+            {Object.keys(categoryTotals).length === 0 ? (
+              <div className="text-center py-6 text-gray-500">
+                <p>No budget categories defined yet.</p>
+                <Button
+                  variant="link"
+                  className="text-purple-600"
+                  onClick={() => setIsAddBudgetOpen(true)}
+                >
+                  Add your first budget
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {Object.entries(categoryTotals).map(
+                  ([category, { amount, spent }]) => {
+                    const percentage = amount > 0 ? (spent / amount) * 100 : 0;
+                    return (
+                      <div key={category} className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center">
+                            <div
+                              className={`w-3 h-3 rounded-full mr-2 ${getCategoryColor(category).split(" ")[0]}`}
+                            ></div>
+                            <span className="capitalize">{category}</span>
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            ${spent.toFixed(2)} / ${amount.toFixed(2)}
+                          </div>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
                           <div
-                            className={`w-3 h-3 rounded-full mr-2 ${getCategoryColor(category).split(" ")[0]}`}
+                            className={`h-2.5 rounded-full ${percentage > 90 ? "bg-red-600" : "bg-gradient-to-r from-pink-500 to-purple-600"}`}
+                            style={{ width: `${Math.min(percentage, 100)}%` }}
                           ></div>
-                          <span className="capitalize">{category}</span>
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          ${spent.toFixed(2)} / ${amount.toFixed(2)}
                         </div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div
-                          className={`h-2.5 rounded-full ${percentage > 90 ? "bg-red-600" : "bg-gradient-to-r from-pink-500 to-purple-600"}`}
-                          style={{ width: `${Math.min(percentage, 100)}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                },
-              )}
-            </div>
+                    );
+                  },
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -635,34 +603,47 @@ const FamilyBudget: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {expenses.slice(0, 5).map((expense) => (
-                <div
-                  key={expense.id}
-                  className="flex justify-between items-center border-b pb-3 last:border-0 last:pb-0"
+            {expenses.length === 0 ? (
+              <div className="text-center py-6 text-gray-500">
+                <p>No expenses recorded yet.</p>
+                <Button
+                  variant="link"
+                  className="text-purple-600"
+                  onClick={() => setIsAddExpenseOpen(true)}
                 >
-                  <div>
-                    <h4 className="font-medium">{expense.title}</h4>
-                    <div className="flex items-center mt-1">
-                      <CalendarIcon className="h-3.5 w-3.5 text-gray-500 mr-1" />
-                      <span className="text-xs text-gray-500">
-                        {format(expense.date, "MMM d, yyyy")}
+                  Add your first expense
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {expenses.slice(0, 5).map((expense) => (
+                  <div
+                    key={expense.id}
+                    className="flex justify-between items-center border-b pb-3 last:border-0 last:pb-0"
+                  >
+                    <div>
+                      <h4 className="font-medium">{expense.title}</h4>
+                      <div className="flex items-center mt-1">
+                        <CalendarIcon className="h-3.5 w-3.5 text-gray-500 mr-1" />
+                        <span className="text-xs text-gray-500">
+                          {format(new Date(expense.date), "MMM d, yyyy")}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`px-2 py-0.5 rounded-full text-xs ${getCategoryColor(expense.category)}`}
+                      >
+                        <span className="capitalize">{expense.category}</span>
+                      </div>
+                      <span className="font-medium">
+                        ${expense.amount.toFixed(2)}
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`px-2 py-0.5 rounded-full text-xs ${getCategoryColor(expense.category)}`}
-                    >
-                      <span className="capitalize">{expense.category}</span>
-                    </div>
-                    <span className="font-medium">
-                      ${expense.amount.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
             {expenses.length > 5 && (
               <Button
                 variant="link"
@@ -738,7 +719,7 @@ const FamilyBudget: React.FC = () => {
                         >
                           <td className="py-3 px-2">{expense.title}</td>
                           <td className="py-3 px-2">
-                            {format(expense.date, "MMM d, yyyy")}
+                            {format(new Date(expense.date), "MMM d, yyyy")}
                           </td>
                           <td className="py-3 px-2">
                             <div
